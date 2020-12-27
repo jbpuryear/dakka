@@ -1,4 +1,5 @@
-import KEYWORDS from './KEYWORDS';
+import KEYWORDS from './KEYWORDS.js';
+import TOKENS from './TOKENS.js';
 
 let src;
 let line;
@@ -88,40 +89,40 @@ function scan(input) {
       case '\r':
         break;
 
-      case '(': addToken('L_PAREN'); break;
-      case ')': addToken('R_PAREN'); break;
-      case '{': addToken('L_BRACE'); break;
-      case '}': addToken('R_BRACE'); break;
-      case ';': addToken('SEMI'); break;
-      case ',': addToken('COMMA'); break;
+      case '(': addToken(TOKENS.L_PAREN); break;
+      case ')': addToken(TOKENS.R_PAREN); break;
+      case '{': addToken(TOKENS.L_BRACE); break;
+      case '}': addToken(TOKENS.R_BRACE); break;
+      case ';': addToken(TOKENS.SEMI); break;
+      case ',': addToken(TOKENS.COMMA); break;
 
-      case '=': addToken(match('=') ? 'EQUAL' : 'ASSIGN'); break;
-      case '+': addToken(match('=') ? 'PLUS_ASSIGN' : 'PLUS'); break;
-      case '-': addToken(match('=') ? 'MINUS_ASSIGN' : 'MINUS'); break;
-      case '*': addToken(match('=') ? 'MUL_ASSIGN' : 'MUL'); break;
-      case '!': addToken(match('=') ? 'NOT_EQUAL' : 'NOT'); break;
-      case '>': addToken(match('=') ? 'GREATER_EQ' : 'GREATER'); break;
-      case '<': addToken(match('=') ? 'LESS_EQ' : 'LESS'); break;
+      case '=': addToken(match('=') ? TOKENS.EQUAL : TOKENS.ASSIGN); break;
+      case '+': addToken(match('=') ? TOKENS.PLUS_ASSIGN : TOKENS.PLUS); break;
+      case '-': addToken(match('=') ? TOKENS.MINUS_ASSIGN : TOKENS.MINUS); break;
+      case '*': addToken(match('=') ? TOKENS.MUL_ASSIGN : TOKENS.MUL); break;
+      case '!': addToken(match('=') ? TOKENS.NOT_EQUAL : TOKENS.NOT); break;
+      case '>': addToken(match('=') ? TOKENS.GREATER_EQ : TOKENS.GREATER); break;
+      case '<': addToken(match('=') ? TOKENS.LESS_EQ : TOKENS.LESS); break;
       case '/':
         if (match('/')) {
           while (peek() !== '\n' && !eof()) {
             advance();
           }
         } else {
-          addToken(match('=') ? 'DIV_ASSIGN' : 'DIV');
+          addToken(match('=') ? TOKENS.DIV_ASSIGN : TOKENS.DIV);
         }
         break;
 
       case '&':
         if (match('&')) {
-          addToken('AND');
+          addToken(TOKENS.AND);
         } else {
           error(line, 'Unexpected token, &');
         }
         break;
       case '|':
         if (match('|')) {
-          addToken('OR');
+          addToken(TOKENS.OR);
         } else {
           error(line, 'Unexpected token, |');
         }
@@ -139,7 +140,7 @@ function scan(input) {
           }
         }
         match(c);
-        addToken('STRING', src.slice(start + 1, current - 1));
+        addToken(TOKENS.STRING, src.slice(start + 1, current - 1));
         break;
       }
 
@@ -156,19 +157,19 @@ function scan(input) {
           }
 
           const val = parseFloat(src.slice(start, current));
-          addToken('NUMBER', val);
+          addToken(TOKENS.NUMBER, val);
         } else if (isIdChar(c)) {
           while (isIdChar(peek())) { advance(); }
           const name = src.slice(start, current);
-          const type = KEYWORDS.get(name) || 'IDENTIFIER';
+          const type = KEYWORDS.get(name) || TOKENS.IDENTIFIER;
           addToken(type);
         } else {
-          error(line, `Unexpected token (${c})`);
+          error(line, `Invalid token (${c})`);
         }
       }
     }
   }
-  addToken('EOF');
+  addToken(TOKENS.EOF);
 
   if (hadError) {
     throw new Error('DAKA_LEXICAL_ERROR');

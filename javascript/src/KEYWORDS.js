@@ -1,13 +1,15 @@
+import TOKENS from './TOKENS.js';
+
 export default new Map([
-  ['true', 'TRUE'],
-  ['false', 'FALSE'],
-  ['null', 'NULL'],
-  ['var', 'VAR'],
-  ['if', 'IF'],
-  ['else', 'ELSE'],
-  ['while', 'WHILE'],
-  ['loop', 'LOOP'],
-  ['fun', 'FUNCTION'],
-  ['return', 'RETURN'],
-  ['sleep', 'SLEEP'],
+  ['true', TOKENS.TRUE],
+  ['false', TOKENS.FALSE],
+  ['null', TOKENS.NULL],
+  ['var', TOKENS.VAR],
+  ['if', TOKENS.IF],
+  ['else', TOKENS.ELSE],
+  ['while', TOKENS.WHILE],
+  ['loop', TOKENS.LOOP],
+  ['fun', TOKENS.FUNCTION],
+  ['return', TOKENS.RETURN],
+  ['sleep', TOKENS.SLEEP],
 ]);
