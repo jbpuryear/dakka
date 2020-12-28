@@ -1,15 +1,15 @@
-import TOKENS from './TOKENS.js';
+import Token from './Token.js';
 
 export default new Map([
-  ['true', TOKENS.TRUE],
-  ['false', TOKENS.FALSE],
-  ['null', TOKENS.NULL],
-  ['var', TOKENS.VAR],
-  ['if', TOKENS.IF],
-  ['else', TOKENS.ELSE],
-  ['while', TOKENS.WHILE],
-  ['loop', TOKENS.LOOP],
-  ['fun', TOKENS.FUNCTION],
-  ['return', TOKENS.RETURN],
-  ['sleep', TOKENS.SLEEP],
+  ['true', Token.TRUE],
+  ['false', Token.FALSE],
+  ['null', Token.NULL],
+  ['var', Token.VAR],
+  ['if', Token.IF],
+  ['else', Token.ELSE],
+  ['while', Token.WHILE],
+  ['loop', Token.LOOP],
+  ['fun', Token.FUNCTION],
+  ['return', Token.RETURN],
+  ['sleep', Token.SLEEP],
 ]);

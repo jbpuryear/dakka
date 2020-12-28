@@ -1,31 +1,31 @@
 import DakkaFunction from './DakkaFunction.js';
 import Environment from './Environment.js';
-import TOKENS from './TOKENS.js';
+import Token from './Token.js';
 import OP_CODES from './OP_CODES.js';
 import PREC from './PRECEDENCE.js';
 
 
 const rules = new Map([
-  [TOKENS.L_PAREN, { prefix: grouping, infix: call, precedence: PREC.CALL }],
-  [TOKENS.MINUS, { prefix: unary, infix: binary, precedence: PREC.TERM }],
-  [TOKENS.PLUS, { prefix: null, infix: binary, precedence: PREC.TERM }],
-  [TOKENS.MUL, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
-  [TOKENS.DIV, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
-  [TOKENS.NUMBER, { prefix: number, infix: null, precedence: PREC.PRIMARY }],
-  [TOKENS.STRING, { prefix: string, infix: null, precedence: PREC.NONE }],
-//  [TOKENS.IDENTIFIER, { prefix: variable, infix: null, precedence: PREC.PRIMARY }],
-  [TOKENS.TRUE, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
-  [TOKENS.FALSE, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
-  [TOKENS.NULL, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
-  [TOKENS.NOT, { prefix: unary, infix: null, precedence: PREC.FACTOR }],
-//  [TOKENS.EQUAL, { prefix: null, infix: binary, precedence: PREC.EQUALITY }],
-//  [TOKENS.NOT_EQUAL, { prefix: null, infix: binary, precedence: PREC.EQUALITY }],
-//  [TOKENS.GREATER, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
-//  [TOKENS.GREATER_EQ, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
-//  [TOKENS.LESS, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
-//  [TOKENS.LESS_EQ, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
-//  [TOKENS.AND, { prefix: null, infix: and, precedence: PREC.AND }],
-//  [TOKENS.OR, { prefix: null, infix: or, precedence: PREC.OR }],
+  [Token.L_PAREN, { prefix: grouping, infix: call, precedence: PREC.CALL }],
+  [Token.MINUS, { prefix: unary, infix: binary, precedence: PREC.TERM }],
+  [Token.PLUS, { prefix: null, infix: binary, precedence: PREC.TERM }],
+  [Token.MUL, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
+  [Token.DIV, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
+  [Token.NUMBER, { prefix: number, infix: null, precedence: PREC.PRIMARY }],
+  [Token.STRING, { prefix: string, infix: null, precedence: PREC.NONE }],
+//  [Token.IDENTIFIER, { prefix: variable, infix: null, precedence: PREC.PRIMARY }],
+  [Token.TRUE, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
+  [Token.FALSE, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
+  [Token.NULL, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
+  [Token.NOT, { prefix: unary, infix: null, precedence: PREC.FACTOR }],
+//  [Token.EQUAL, { prefix: null, infix: binary, precedence: PREC.EQUALITY }],
+//  [Token.NOT_EQUAL, { prefix: null, infix: binary, precedence: PREC.EQUALITY }],
+//  [Token.GREATER, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
+//  [Token.GREATER_EQ, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
+//  [Token.LESS, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
+//  [Token.LESS_EQ, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
+//  [Token.AND, { prefix: null, infix: and, precedence: PREC.AND }],
+//  [Token.OR, { prefix: null, infix: or, precedence: PREC.OR }],
 ]);
 
 let script;
@@ -96,9 +96,9 @@ function call() {
 
 function boolOrNull() {
   switch (prev.type) {
-    case TOKENS.TRUE: emitOp(OP_CODES.TRUE); return;
-    case TOKENS.FALSE: emitOp(OP_CODES.FALSE); return;
-    case TOKENS.NULL: emitOp(OP_CODES.NULL); return;
+    case Token.TRUE: emitOp(OP_CODES.TRUE); return;
+    case Token.FALSE: emitOp(OP_CODES.FALSE); return;
+    case Token.NULL: emitOp(OP_CODES.NULL); return;
   }
 }
 
@@ -116,8 +116,8 @@ function unary() {
   const type = prev.type;
   parsePrecedence(PREC.UNARY);
   switch (type) {
-    case TOKENS.MINUS: emitOp(OP_CODES.NEGATE); return;
-    case TOKENS.NOT: emitOp(OP_CODES.NOT); return;
+    case Token.MINUS: emitOp(OP_CODES.NEGATE); return;
+    case Token.NOT: emitOp(OP_CODES.NOT); return;
   }
 }
 
@@ -128,23 +128,23 @@ function binary() {
   parsePrecedence(rule.precedence + 1);
 
   switch (opType) {
-    case TOKENS.PLUS: emitOp(OP_CODES.ADD); break;
-    case TOKENS.MINUS: emitOp(OP_CODES.SUB); break;
-    case TOKENS.MUL: emitOp(OP_CODES.MUL); break;
-    case TOKENS.DIV: emitOp(OP_CODES.DIV); break;
-    case TOKENS.EQUAL: emitOp(OP_CODES.EQUAL); break;
-    case TOKENS.NOT_EQUAL: emitOp(OP_CODES.NOT_EQUAL); break;
-    case TOKENS.GREATER: emitOp(OP_CODES.GREATER); break;
-    case TOKENS.GREATER_EQ: emitOp(OP_CODES.GREATER_EQ); break;
-    case TOKENS.LESS: emitOp(OP_CODES.LESS); break;
-    case TOKENS.LESS_EQ: emitOp(OP_CODES.LESS_EQ); break;
+    case Token.PLUS: emitOp(OP_CODES.ADD); break;
+    case Token.MINUS: emitOp(OP_CODES.SUB); break;
+    case Token.MUL: emitOp(OP_CODES.MUL); break;
+    case Token.DIV: emitOp(OP_CODES.DIV); break;
+    case Token.EQUAL: emitOp(OP_CODES.EQUAL); break;
+    case Token.NOT_EQUAL: emitOp(OP_CODES.NOT_EQUAL); break;
+    case Token.GREATER: emitOp(OP_CODES.GREATER); break;
+    case Token.GREATER_EQ: emitOp(OP_CODES.GREATER_EQ); break;
+    case Token.LESS: emitOp(OP_CODES.LESS); break;
+    case Token.LESS_EQ: emitOp(OP_CODES.LESS_EQ); break;
   }
 }
 
 
 function grouping() {
   expression();
-  consume(TOKENS.R_PAREN, 'Expected closing parenthesis after expression.');
+  consume(Token.R_PAREN, 'Expected closing parenthesis after expression.');
 }
 
 
@@ -179,7 +179,7 @@ function lambda() {
 
 
 function expression() {
-  if (match(TOKENS.FUN)) {
+  if (match(Token.FUN)) {
     lambda();
     return;
   }

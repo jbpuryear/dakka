@@ -1,5 +1,5 @@
 import KEYWORDS from './KEYWORDS.js';
-import TOKENS from './TOKENS.js';
+import Token from './Token.js';
 
 let src;
 let line;
@@ -26,13 +26,10 @@ function isWS(c) {
   return ' \t\n\r'.includes(c);
 }
 
-function addToken(type, literal) {
-  tokens.push({
-    type,
-    lexeme: src.slice(start, current),
-    literal,
-    line,
-  });
+function addToken(type, literal = null) {
+  const lexeme = src.slice(start, current);
+  const token = new Token(type, literal, lexeme, line);
+  tokens.push(token);
 }
 
 function eof() {
@@ -89,40 +86,40 @@ function scan(input) {
       case '\r':
         break;
 
-      case '(': addToken(TOKENS.L_PAREN); break;
-      case ')': addToken(TOKENS.R_PAREN); break;
-      case '{': addToken(TOKENS.L_BRACE); break;
-      case '}': addToken(TOKENS.R_BRACE); break;
-      case ';': addToken(TOKENS.SEMI); break;
-      case ',': addToken(TOKENS.COMMA); break;
+      case '(': addToken(Token.L_PAREN); break;
+      case ')': addToken(Token.R_PAREN); break;
+      case '{': addToken(Token.L_BRACE); break;
+      case '}': addToken(Token.R_BRACE); break;
+      case ';': addToken(Token.SEMI); break;
+      case ',': addToken(Token.COMMA); break;
 
-      case '=': addToken(match('=') ? TOKENS.EQUAL : TOKENS.ASSIGN); break;
-      case '+': addToken(match('=') ? TOKENS.PLUS_ASSIGN : TOKENS.PLUS); break;
-      case '-': addToken(match('=') ? TOKENS.MINUS_ASSIGN : TOKENS.MINUS); break;
-      case '*': addToken(match('=') ? TOKENS.MUL_ASSIGN : TOKENS.MUL); break;
-      case '!': addToken(match('=') ? TOKENS.NOT_EQUAL : TOKENS.NOT); break;
-      case '>': addToken(match('=') ? TOKENS.GREATER_EQ : TOKENS.GREATER); break;
-      case '<': addToken(match('=') ? TOKENS.LESS_EQ : TOKENS.LESS); break;
+      case '=': addToken(match('=') ? Token.EQUAL : Token.ASSIGN); break;
+      case '+': addToken(match('=') ? Token.PLUS_ASSIGN : Token.PLUS); break;
+      case '-': addToken(match('=') ? Token.MINUS_ASSIGN : Token.MINUS); break;
+      case '*': addToken(match('=') ? Token.MUL_ASSIGN : Token.MUL); break;
+      case '!': addToken(match('=') ? Token.NOT_EQUAL : Token.NOT); break;
+      case '>': addToken(match('=') ? Token.GREATER_EQ : Token.GREATER); break;
+      case '<': addToken(match('=') ? Token.LESS_EQ : Token.LESS); break;
       case '/':
         if (match('/')) {
           while (peek() !== '\n' && !eof()) {
             advance();
           }
         } else {
-          addToken(match('=') ? TOKENS.DIV_ASSIGN : TOKENS.DIV);
+          addToken(match('=') ? Token.DIV_ASSIGN : Token.DIV);
         }
         break;
 
       case '&':
         if (match('&')) {
-          addToken(TOKENS.AND);
+          addToken(Token.AND);
         } else {
           error(line, 'Unexpected token, &');
         }
         break;
       case '|':
         if (match('|')) {
-          addToken(TOKENS.OR);
+          addToken(Token.OR);
         } else {
           error(line, 'Unexpected token, |');
         }
@@ -140,7 +137,7 @@ function scan(input) {
           }
         }
         match(c);
-        addToken(TOKENS.STRING, src.slice(start + 1, current - 1));
+        addToken(Token.STRING, src.slice(start + 1, current - 1));
         break;
       }
 
@@ -157,11 +154,11 @@ function scan(input) {
           }
 
           const val = parseFloat(src.slice(start, current));
-          addToken(TOKENS.NUMBER, val);
+          addToken(Token.NUMBER, val);
         } else if (isIdChar(c)) {
           while (isIdChar(peek())) { advance(); }
           const name = src.slice(start, current);
-          const type = KEYWORDS.get(name) || TOKENS.IDENTIFIER;
+          const type = KEYWORDS.get(name) || Token.IDENTIFIER;
           addToken(type);
         } else {
           error(line, `Invalid token (${c})`);
@@ -169,7 +166,7 @@ function scan(input) {
       }
     }
   }
-  addToken(TOKENS.EOF);
+  addToken(Token.EOF);
 
   if (hadError) {
     throw new Error('DAKA_LEXICAL_ERROR');
