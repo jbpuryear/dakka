@@ -29,6 +29,7 @@ const rules = new Map([
 ]);
 
 let script;
+let constants;
 let environment;
 let tokens;
 let current;
@@ -83,10 +84,12 @@ function emitOp(op) {
 
 function emitConstant(val) {
   emitOp(OP_CODES.CONST);
-  script.code.push(val);
-  // TODO Switch to a constant table instead of mixing constants
-  // in with code, for portability and so we can use
-  // typed arrays if we need a performance boost.
+  const exists = constants.has(val);
+  const index = exists ? constants.get(val) : constants.size;
+  if (!exists) {
+    constants.set(val, index);
+  }
+  script.code.push(index);
 }
 
 
@@ -194,6 +197,7 @@ function statement() {
 
 function parse(tkns, env = new Environment()) {
   script = new DakkaFunction();
+  constants = new Map();
   environment = env;
   tokens = tkns;
   current = null;
@@ -205,6 +209,7 @@ function parse(tkns, env = new Environment()) {
   advance();
   expression();
 
+  script.constants = [...constants.keys()];
   return script;
 }
 
