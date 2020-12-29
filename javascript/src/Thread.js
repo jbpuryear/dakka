@@ -4,7 +4,7 @@ import OP_CODES from './OP_CODES.js';
 
 function isNumber(thread, operand) {
   if ((typeof operand) !== 'number') {
-    thread.error('Operand, ${operand}, is not a number');
+    thread.error(`Operand, ${operand}, is not a number`);
     return false;
   }
   return true;
@@ -15,47 +15,47 @@ function areNumbers(thread, a, b) {
 }
 
 const branchTable = {
-  [OP_CODES.TRUE](thread, stack, env) {
+  [OP_CODES.TRUE](thread, stack) {
     stack.push(true);
   },
 
-  [OP_CODES.FALSE](thread, stack, env) {
+  [OP_CODES.FALSE](thread, stack) {
     stack.push(false);
   },
 
-  [OP_CODES.NULL](thread, stack, env) {
+  [OP_CODES.NULL](thread, stack) {
     stack.push(null);
   },
 
-  [OP_CODES.NOT](thread, stack, env) {
+  [OP_CODES.NOT](thread, stack) {
     stack.push(!stack.pop());
   },
 
-  [OP_CODES.EQUAL](thread, stack, env) {
+  [OP_CODES.EQUAL](thread, stack) {
     stack.push(stack.pop() === stack.pop());
   },
 
-  [OP_CODES.NOT_EQUAL](thread, stack, env) {
+  [OP_CODES.NOT_EQUAL](thread, stack) {
     stack.push(stack.pop() !== stack.pop());
   },
 
-  [OP_CODES.GREATER](thread, stack, env) {
+  [OP_CODES.GREATER](thread, stack) {
     stack.push(stack.pop() < stack.pop());
   },
 
-  [OP_CODES.GREATER_EQ](thread, stack, env) {
+  [OP_CODES.GREATER_EQ](thread, stack) {
     stack.push(stack.pop() <= stack.pop());
   },
 
-  [OP_CODES.LESS](thread, stack, env) {
+  [OP_CODES.LESS](thread, stack) {
     stack.push(stack.pop() > stack.pop());
   },
 
-  [OP_CODES.LESS_EQ](thread, stack, env) {
+  [OP_CODES.LESS_EQ](thread, stack) {
     stack.push(stack.pop() >= stack.pop());
   },
 
-  [OP_CODES.ADD](thread, stack, env) {
+  [OP_CODES.ADD](thread, stack) {
     const b = stack.pop();
     const a = stack.pop();
     if (areNumbers(thread, a, b)) {
@@ -63,7 +63,7 @@ const branchTable = {
     }
   },
 
-  [OP_CODES.SUB](thread, stack, env) {
+  [OP_CODES.SUB](thread, stack) {
     const b = stack.pop();
     const a = stack.pop();
     if (areNumbers(thread, a, b)) {
@@ -71,7 +71,7 @@ const branchTable = {
     }
   },
 
-  [OP_CODES.MUL](thread, stack, env) {
+  [OP_CODES.MUL](thread, stack) {
     const b = stack.pop();
     const a = stack.pop();
     if (areNumbers(thread, a, b)) {
@@ -79,7 +79,7 @@ const branchTable = {
     }
   },
 
-  [OP_CODES.DIV](thread, stack, env) {
+  [OP_CODES.DIV](thread, stack) {
     const b = stack.pop();
     const a = stack.pop();
     if (areNumbers(thread, a, b)) {
@@ -91,45 +91,56 @@ const branchTable = {
     }
   },
 
-  [OP_CODES.NEGATE](thread, stack, env) {
+  [OP_CODES.NEGATE](thread, stack) {
     const a = stack.pop();
     if (isNumber(thread, a)) {
       stack.push(-a);
     }
   },
 
-  [OP_CODES.CONST](thread, stack, env) {
+  [OP_CODES.CONST](thread, stack) {
     const idx = thread.advance();
     stack.push(thread.currentFrame.script.constants[idx]);
   },
 
-  [OP_CODES.POP](thread, stack, env) {
+  [OP_CODES.POP](thread, stack) {
     stack.pop();
   },
 
+  [OP_CODES.SCOPE_PUSH](thread, stack) {
+    thread.currentEnvironment = thread.currentEnvironment.makeInner();
+  },
+
+  [OP_CODES.SCOPE_POP](thread, stack) {
+    thread.currentEnvironment = thread.currentEnvironment.outer;
+  },
+
+  [OP_CODES.DEFINE](thread, stack) {
+    const varName = stack.pop();
+    thread.currentEnvironment.makeVar(varName, null);
+  },
+
+  [OP_CODES.ASSIGN](thread, stack) {
+    const scopeDepth = thread.advance();
+    const name = stack.pop();
+    // Leave the value on the stack, assignment returns a value.
+    const value = stack[stack.length - 1];
+    thread.currentEnvironment.setVarAt(scopeDepth, name, value);
+  },
+
+  [OP_CODES.GET_VAR](thread, stack) {
+    const scopeDepth = thread.advance();
+    const name = stack.pop();
+    stack.push(thread.currentEnvironment.getVarAt(scopeDepth, name));
+  },
   /*
-  [OP_CODES.SCOPE_PUSH](thread, stack, env) {
+  [OP_CODES.CLOSURE](thread, stack) {
   },
 
-  [OP_CODES.SCOPE_POP](thread, stack, env) {
-  },
-
-  [OP_CODES.DEFINE](thread, stack, env) {
-  },
-
-  [OP_CODES.ASSIGN](thread, stack, env) {
-  },
-
-  [OP_CODES.GET_VAR](thread, stack, env) {
-  },
-
-  [OP_CODES.CLOSURE](thread, stack, env) {
-  },
-
-  [OP_CODES.CALL](thread, stack, env) {
+  [OP_CODES.CALL](thread, stack) {
   },
 */
-  [OP_CODES.RETURN](thread, stack, env) {
+  [OP_CODES.RETURN](thread, stack) {
     if (thread.callStack.length === 1) {
       thread.events.emit('returned', thread.stack.pop());
       thread.terminated = true;
@@ -140,19 +151,19 @@ const branchTable = {
     }
   },
 /*
-  // [OP_CODES.SPAWN](thread, stack, env) {
+  // [OP_CODES.SPAWN](thread, stack) {
   },
 
-  [OP_CODES.LOOP](thread, stack, env) {
+  [OP_CODES.LOOP](thread, stack) {
   },
 
-  [OP_CODES.SLEEP](thread, stack, env) {
+  [OP_CODES.SLEEP](thread, stack) {
   },
 
-  [OP_CODES.JMP](thread, stack, env) {
+  [OP_CODES.JMP](thread, stack) {
   },
 
-  [OP_CODES.JMP_FALSE](thread, stack, env) {
+  [OP_CODES.JMP_FALSE](thread, stack) {
   },
 */
 };
@@ -185,6 +196,11 @@ class Thread {
   }
 
   run(script, environment, args) {
+    if (script.code.length === 0) {
+      this.events.emit('returned', null);
+      this.terminated = true;
+      return;
+    }
     this.sleep = 0;
     this.pc = 0;
     this.stack = Array.isArray(args) ? args : [];
@@ -202,9 +218,10 @@ class Thread {
     }
 
     const { stack } = this;
+    const bt = branchTable;
     while (this.sleep <= 0 && !this.terminated) {
       const op = this.advance();
-      branchTable[op](this, stack);
+      bt[op](this, stack);
     }
   }
 
@@ -215,7 +232,7 @@ class Thread {
     return frame;
   }
 
-  popFrame(script) {
+  popFrame() {
     const frame = this.callStack.pop();
     this.currentFrame = this.callStack[this.callStack.length - 1];
     this.currentEnvironment = frame.returnEnvironment;

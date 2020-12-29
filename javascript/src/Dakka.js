@@ -34,9 +34,6 @@ function remove(list, thread) {
 }
 
 // TODO Figure out where to move this, system for extending natives.
-function makeGlobalEnvironment() {
-  return new Environment();
-}
 
 function onThreadErrored(thread, msg) {
   remove(this._threads, thread);
@@ -57,18 +54,10 @@ class Dakka {
     this.debug = false;
     this.events = new EventEmitter();
     this._threads = { head: null, tail: null };
-    this._global = makeGlobalEnvironment();
   }
 
-  compile(src) {
-    let out;
-    try {
-      out = parse(scan(src));
-    } catch (e) {
-      console.error('Failed to compile');
-      return null;
-    }
-    return out;
+  static compile(src) {
+    return parse(scan(src));
   }
 
   run(script, spawn = false, callback) {
@@ -80,13 +69,26 @@ class Dakka {
     } else {
       target = null;
     }
-    const compiled = typeof script === 'string' ? this.compile(script) : script;
-    if (!compiled) {
-      return;
+
+    let compiled;
+    if (typeof script === 'string') {
+      try {
+        compiled = Dakka.compile(script);
+      } catch (e) {
+        if (this.debug) {
+          console.error(e);
+          console.error('Failed to compile');
+        }
+        this.events.emit('errored', target, 'Failed to compile');
+        return;
+      }
+    } else {
+      compiled = script;
     }
+
     const thread = new Thread(this, target, callback);
-    thread.events.once('errored', onThreadErrored, this);
-    thread.run(compiled, this._global);
+    thread.events.on('errored', onThreadErrored, this);
+    thread.run(compiled, new Environment());
     if (!thread.terminated) {
       shift(this._threads, thread);
     }

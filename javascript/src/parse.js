@@ -12,7 +12,7 @@ const rules = new Map([
   [Token.DIV, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
   [Token.NUMBER, { prefix: number, infix: null, precedence: PREC.PRIMARY }],
   [Token.STRING, { prefix: string, infix: null, precedence: PREC.NONE }],
-  //  [Token.IDENTIFIER, { prefix: variable, infix: null, precedence: PREC.PRIMARY }],
+  [Token.IDENTIFIER, { prefix: variable, infix: null, precedence: PREC.PRIMARY }],
   [Token.TRUE, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
   [Token.FALSE, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
   [Token.NULL, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
@@ -105,6 +105,26 @@ function emitConstant(val) {
   code.push(index);
 }
 
+function emitAssign(name, scopeDepth) {
+  emitConstant(name);
+  emitOp(OP_CODES.ASSIGN);
+  code.push(scopeDepth);
+}
+
+function emitGetVar(name, scopeDepth) {
+  emitConstant(name);
+  emitOp(OP_CODES.GET_VAR);
+  code.push(scopeDepth);
+}
+
+function pushEnvironment() {
+  environment = environment.makeInner();
+}
+
+function popEnvironment() {
+  environment = environment.outer;
+}
+
 function call() {
   // TODO
 }
@@ -123,6 +143,25 @@ function number() {
 
 function string() {
   emitConstant(prev.literal);
+}
+
+function variable(canAssign) {
+  const name = prev.lexeme;
+  const scopeDepth = environment.getVarDepth(name);
+  if (scopeDepth < 0) {
+    error(prev, `Cannot access undeclared variable, ${name}`);
+    return;
+  }
+  if (environment.getVarAt(scopeDepth, name) === false) {
+    error(prev, `Cannot access variable, ${name}, in its own initializer`);
+    return;
+  }
+  if (canAssign && match(Token.ASSIGN)) {
+    expression();
+    emitAssign(name, scopeDepth);
+  } else {
+    emitGetVar(name, scopeDepth);
+  }
 }
 
 function unary() {
@@ -186,14 +225,6 @@ function lambda() {
   // TODO
 }
 
-function expression() {
-  if (match(Token.FUN)) {
-    lambda();
-    return;
-  }
-  parsePrecedence(PREC.ASSIGNMENT);
-}
-
 function returnStmt() {
   if (match(Token.SEMI)) {
     emitOp(OP_CODES.NULL);
@@ -203,11 +234,68 @@ function returnStmt() {
   emitOp(OP_CODES.RETURN);
 }
 
-function statement() {
-  if (match(Token.RETURN)) {
-    returnStmt();
+function expression() {
+  if (match(Token.FUN)) {
+    lambda();
+    return;
   }
-  consume(Token.SEMI, 'Expected semi at end of statement');
+  parsePrecedence(PREC.ASSIGNMENT);
+}
+
+function expressionStmt() {
+  expression();
+  emitOp(OP_CODES.POP);
+}
+
+function block() {
+  pushEnvironment();
+  emitOp(OP_CODES.SCOPE_PUSH);
+  while (current.type !== Token.R_BRACE && current.type !== Token.EOF) {
+    declaration();
+  }
+  consume(Token.R_BRACE, 'Unmatched block deliminator');
+  popEnvironment();
+  emitOp(OP_CODES.SCOPE_POP);
+}
+
+function statement() {
+  // Empty statement
+  if (match(Token.SEMI)) { return; }
+
+  if (match(Token.L_BRACE)) {
+    block();
+    return;
+  } if (match(Token.RETURN)) {
+    returnStmt();
+  } else {
+    expressionStmt();
+  }
+
+  consume(Token.SEMI, 'Expected semicolon at end of statement');
+}
+
+function declaration() {
+  if (match(Token.VAR)) {
+    consume(Token.IDENTIFIER, 'Missing identifier in variable declaration');
+    const name = prev.lexeme;
+    environment.makeVar(name, false);
+    emitConstant(name);
+    emitOp(OP_CODES.DEFINE);
+    if (match(Token.ASSIGN)) {
+      // this lets functions call themselves
+      if (current.type === Token.FUN) { environment.setVarAt(0, name, true); }
+      expression();
+      emitAssign(name, 0);
+      emitOp(OP_CODES.POP);
+    }
+    environment.setVarAt(0, name, true);
+  } else {
+    statement();
+  }
+
+  if (panicMode) {
+    synchronize();
+  }
 }
 
 function parse(tkns, env = new Environment()) {
@@ -223,10 +311,7 @@ function parse(tkns, env = new Environment()) {
 
   advance();
   while (!match(Token.EOF)) {
-    statement();
-    if (panicMode) {
-      synchronize();
-    }
+    declaration();
   }
 
   return hadError ? null : new DakkaFunction(0, code, [...constants.keys()]);

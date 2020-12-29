@@ -4,9 +4,9 @@ import Dakka from '../src/Dakka.js';
 const dakka = new Dakka();
 dakka.debug = true;
 
-describe('Expressions', () => {
+describe('Expressions', function expressionTest() {
+  this.timeout(1000);
   it('Evaluates', (done) => {
-    this.timeout(1000);
     const script = 'return (5 - (3 - 1)) + -1;';
     dakka.run(script, false, (ret) => {
       assert.equal(2, ret);

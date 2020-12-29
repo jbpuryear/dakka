@@ -13,7 +13,7 @@ class Environment {
 
   setVar(name, value) {
     if (this.table.has(name)) {
-      this.table.set(name);
+      this.table.set(name, value);
     } else {
       throw new Error(`Cannot set variable, ${name}, not found in target scope`);
     }
