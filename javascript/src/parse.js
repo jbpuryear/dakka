@@ -48,6 +48,27 @@ function error(token, msg) {
   console.error(`${token.line}: ${msg}`);
 }
 
+function synchronize() {
+  panicMode = false;
+
+  while (current.type !== Token.EOF) {
+    if (prev.type === Token.SEMI) { return; }
+    switch (current.type) {
+      case Token.VAR:
+      case Token.IF:
+      case Token.WHILE:
+      case Token.LOOP:
+      case Token.FUN:
+      case Token.RETURN:
+      case Token.SLEEP:
+        return;
+
+      default:
+        advance();
+    }
+  }
+}
+
 function advance() {
   prev = current;
   current = tokens[idx];
@@ -183,7 +204,6 @@ function returnStmt() {
 }
 
 function statement() {
-  panicMode = false;
   if (match(Token.RETURN)) {
     returnStmt();
   }
@@ -204,9 +224,12 @@ function parse(tkns, env = new Environment()) {
   advance();
   while (!match(Token.EOF)) {
     statement();
+    if (panicMode) {
+      synchronize();
+    }
   }
 
-  return new DakkaFunction(0, code, [...constants.keys()]);
+  return hadError ? null : new DakkaFunction(0, code, [...constants.keys()]);
 }
 
 export default parse;
