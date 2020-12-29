@@ -9,5 +9,5 @@ export default {
   FACTOR: 7,
   UNARY: 8,
   CALL: 9,
-  PRIMARY: 10
+  PRIMARY: 10,
 };

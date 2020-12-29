@@ -1,7 +1,8 @@
 class DakkaFunction {
-  constructor(arity = 0, code = []) {
+  constructor(arity = 0, code = [], constants) {
     this.arity = arity;
     this.code = code;
+    this.constants = constants;
   }
 }
 

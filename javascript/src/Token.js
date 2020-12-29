@@ -7,7 +7,6 @@ class Token {
   }
 }
 
-
 Token.L_PAREN = 'L_PAREN';
 Token.R_PAREN = 'R_PAREN';
 Token.L_BRACE = 'L_BRACE';
@@ -47,6 +46,5 @@ Token.FUN = 'FUN';
 Token.RETURN = 'RETURN';
 Token.SLEEP = 'SLEEP';
 Token.EOF = 'EOF';
-
 
 export default Token;
