@@ -24,8 +24,8 @@ const rules = new Map([
   [Token.GREATER_EQ, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
   [Token.LESS, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
   [Token.LESS_EQ, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
-//  [Token.AND, { prefix: null, infix: and, precedence: PREC.AND }],
-//  [Token.OR, { prefix: null, infix: or, precedence: PREC.OR }],
+  [Token.AND, { prefix: null, infix: and, precedence: PREC.AND }],
+  [Token.OR, { prefix: null, infix: or, precedence: PREC.OR }],
 ]);
 
 let code;
@@ -251,6 +251,33 @@ function binary() {
   }
 }
 
+function and() {
+  emitOp(OP_CODES.JMP_FALSE);
+  const patchIdx = code.length;
+  code.push(0);
+  
+  emitOp(OP_CODES.POP);
+  parsePrecedence(PREC.AND);
+
+  code[patchIdx] = code.length;
+}
+
+function or() {
+  emitOp(OP_CODES.JMP_FALSE);
+  const elseJump = code.length;
+  code.push(0);
+
+  emitOp(OP_CODES.JMP);
+  const endJump = code.length;
+  code.push(0);
+
+  code[elseJump] = code.length;
+  emitOp(OP_CODES.POP);
+
+  parsePrecedence(PREC.OR);
+  code[endJump] = code.length;
+}
+
 function grouping() {
   expression();
   consume(Token.R_PAREN, 'Expected closing parenthesis after expression.');
@@ -370,7 +397,10 @@ function parse(tkns, env = new Environment()) {
     declaration();
   }
 
-  return hadError ? null : new DakkaFunction(0, code, [...constants.keys()]);
+  if (hadError) {
+    throw new Error('DAKKA_SYNTAX_ERROR');
+  }
+  return  new DakkaFunction(0, code, [...constants.keys()]);
 }
 
 export default parse;

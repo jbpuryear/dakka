@@ -197,13 +197,18 @@ const branchTable = {
 
   [OP_CODES.SLEEP](thread, stack) {
   },
+*/
 
   [OP_CODES.JMP](thread, stack) {
+    thread.pc = thread.advance();
   },
 
   [OP_CODES.JMP_FALSE](thread, stack) {
+    const addr = thread.advance();
+    if(!stack[stack.length - 1]) {
+      thread.pc = addr;
+    }
   },
-*/
 };
 
 // Events
