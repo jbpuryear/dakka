@@ -329,6 +329,31 @@ function expressionStmt() {
   emitOp(OP_CODES.POP);
 }
 
+function ifStmt() {
+  consume(Token.L_PAREN, "Expect '(' after if");
+  expression();
+  consume(Token.R_PAREN, "Expect ')' after condition");
+
+  emitOp(OP_CODES.JMP_FALSE);
+  const ifPatchIdx = code.length;
+  code.push(0);
+
+  emitOp(OP_CODES.POP);
+  statement();
+
+  emitOp(OP_CODES.JMP);
+  const elsePatchIdx = code.length;
+  code.push(0);
+  code[ifPatchIdx] = code.length;
+
+  emitOp(OP_CODES.POP);
+
+  if (match(Token.ELSE)) {
+    statement();
+  }
+  code[elsePatchIdx] = code.length;
+}
+
 function block() {
   pushEnvironment();
   emitOp(OP_CODES.SCOPE_PUSH);
@@ -347,7 +372,10 @@ function statement() {
   if (match(Token.L_BRACE)) {
     block();
     return;
-  } if (match(Token.RETURN)) {
+  } else if(match(Token.IF)) {
+    ifStmt();
+    return;
+  } else if (match(Token.RETURN)) {
     returnStmt();
   } else {
     expressionStmt();
@@ -396,6 +424,9 @@ function parse(tkns, env = new Environment()) {
   while (!match(Token.EOF)) {
     declaration();
   }
+
+  emitOp(OP_CODES.NULL);
+  emitOp(OP_CODES.RETURN);
 
   if (hadError) {
     throw new Error('DAKKA_SYNTAX_ERROR');
