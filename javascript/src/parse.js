@@ -329,6 +329,23 @@ function expressionStmt() {
   emitOp(OP_CODES.POP);
 }
 
+function whileStmt() {
+  const repeat = code.length;
+  consume(Token.L_PAREN, "Expect '(' after while");
+  expression();
+  consume(Token.R_PAREN, "Expect ')' after condition");
+
+  emitOp(OP_CODES.JMP_FALSE);
+  const end = code.length;
+  code.push(0);
+
+  statement();
+
+  emitOp(OP_CODES.JMP);
+  code.push(repeat);
+  code[end] = code.length;
+}
+
 function ifStmt() {
   consume(Token.L_PAREN, "Expect '(' after if");
   expression();
@@ -372,8 +389,11 @@ function statement() {
   if (match(Token.L_BRACE)) {
     block();
     return;
-  } else if(match(Token.IF)) {
+  } else if (match(Token.IF)) {
     ifStmt();
+    return;
+  } else if (match(Token.WHILE)) {
+    whileStmt();
     return;
   } else if (match(Token.RETURN)) {
     returnStmt();
