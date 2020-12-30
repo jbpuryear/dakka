@@ -9,7 +9,7 @@ export default new Map([
   ['else', Token.ELSE],
   ['while', Token.WHILE],
   ['loop', Token.LOOP],
-  ['fun', Token.FUNCTION],
+  ['fun', Token.FUN],
   ['return', Token.RETURN],
   ['sleep', Token.SLEEP],
 ]);

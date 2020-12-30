@@ -1,6 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import Environment from './Environment.js';
 import Thread from './Thread.js';
+import Closure from './Closure.js';
 import scan from './scan.js';
 import parse from './parse.js';
 
@@ -88,7 +89,7 @@ class Dakka {
 
     const thread = new Thread(this, target, callback);
     thread.events.on('errored', onThreadErrored, this);
-    thread.run(compiled, new Environment());
+    thread.run(new Closure(compiled, new Environment()));
     if (!thread.terminated) {
       shift(this._threads, thread);
     }

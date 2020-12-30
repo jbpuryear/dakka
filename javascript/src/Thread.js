@@ -1,5 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import StackFrame from './StackFrame.js';
+import Closure from './Closure.js';
 import OP_CODES from './OP_CODES.js';
 
 function isNumber(thread, operand) {
@@ -100,7 +101,8 @@ const branchTable = {
 
   [OP_CODES.CONST](thread, stack) {
     const idx = thread.advance();
-    stack.push(thread.currentFrame.script.constants[idx]);
+    const val = thread.currentFrame.constants[idx];
+    stack.push(val);
   },
 
   [OP_CODES.POP](thread, stack) {
@@ -108,16 +110,22 @@ const branchTable = {
   },
 
   [OP_CODES.SCOPE_PUSH](thread, stack) {
-    thread.currentEnvironment = thread.currentEnvironment.makeInner();
+    thread.pushScope();
   },
 
   [OP_CODES.SCOPE_POP](thread, stack) {
-    thread.currentEnvironment = thread.currentEnvironment.outer;
+    thread.popScope();
   },
 
   [OP_CODES.DEFINE](thread, stack) {
     const varName = stack.pop();
-    thread.currentEnvironment.makeVar(varName, null);
+    thread.currentFrame.environment.makeVar(varName, null);
+  },
+
+  [OP_CODES.INITIALIZE](thread, stack) {
+    const varName = stack.pop();
+    const val = stack.pop();
+    thread.currentFrame.environment.makeVar(varName, val);
   },
 
   [OP_CODES.ASSIGN](thread, stack) {
@@ -125,29 +133,59 @@ const branchTable = {
     const name = stack.pop();
     // Leave the value on the stack, assignment returns a value.
     const value = stack[stack.length - 1];
-    thread.currentEnvironment.setVarAt(scopeDepth, name, value);
+    thread.currentFrame.environment.setVarAt(scopeDepth, name, value);
   },
 
   [OP_CODES.GET_VAR](thread, stack) {
     const scopeDepth = thread.advance();
     const name = stack.pop();
-    stack.push(thread.currentEnvironment.getVarAt(scopeDepth, name));
+    const val = thread.currentFrame.environment.getVarAt(scopeDepth, name);
+    stack.push(val);
   },
-  /*
+
   [OP_CODES.CLOSURE](thread, stack) {
+    const fun = thread.stack.pop();
+    stack.push(new Closure(fun, thread.currentFrame.environment));
   },
 
   [OP_CODES.CALL](thread, stack) {
+    const argCount = thread.advance();
+    const script = stack[stack.length - 1 - argCount];
+    if (!(script instanceof Closure)) {
+      thread.error('Cannot call non-function primitive');
+    }
+    if (script.isNative) {
+      if (argCount !== script.func.length) {
+        script.error('Wrong number of arguments');
+        return;
+      }
+      const args = [];
+      for (let i = 0; i < argCount; i += 1) {
+        args.push(stack.pop());
+      }
+      stack.pop();
+      stack.push(script.func.apply(null, args));
+    } else {
+      if (argCount !== script.func.arity) {
+        script.error('Wrong number of arguments');
+        return;
+      }
+      thread.pushFrame(script);
+      thread.pushScope();
+    }
   },
-*/
+
   [OP_CODES.RETURN](thread, stack) {
     if (thread.callStack.length === 1) {
       thread.events.emit('returned', thread.stack.pop());
       thread.terminated = true;
     } else {
-      // Pop callStack, but not the value stack. Leaving the value on
-      // top of the stack returns it.
       thread.popFrame();
+      // The called function is still sitting on here on the stack, so
+      // we pop it and restore the return value.
+      const returnValue = stack.pop();
+      stack.pop();
+      stack.push(returnValue);
     }
   },
 /*
@@ -190,13 +228,12 @@ class Thread {
     this.stack = null;
     this.callStack = null;
     this.currentFrame = null;
-    this.currentEnvironment = null;
     this.prev = null;
     this.next = null;
   }
 
-  run(script, environment, args) {
-    if (script.code.length === 0) {
+  run(script, args) {
+    if (script.func.code.length === 0) {
       this.events.emit('returned', null);
       this.terminated = true;
       return;
@@ -205,7 +242,6 @@ class Thread {
     this.pc = 0;
     this.stack = Array.isArray(args) ? args : [];
     this.callStack = [];
-    this.currentEnvironment = environment;
     this.pushFrame(script);
     this.terminated = false;
     this.update(0);
@@ -217,7 +253,7 @@ class Thread {
       return;
     }
 
-    const { stack } = this;
+    const stack = this.stack;
     const bt = branchTable;
     while (this.sleep <= 0 && !this.terminated) {
       const op = this.advance();
@@ -226,33 +262,36 @@ class Thread {
   }
 
   pushFrame(script) {
-    const frame = new StackFrame(script, this.currentEnvironment, this.pc);
+    const frame = new StackFrame(script.func.code, script.func.constants,
+      script.environment, this.pc);
     this.callStack.push(frame);
     this.currentFrame = frame;
-    return frame;
+    this.pc = 0;
   }
 
   popFrame() {
     const frame = this.callStack.pop();
     this.currentFrame = this.callStack[this.callStack.length - 1];
-    this.currentEnvironment = frame.returnEnvironment;
     this.pc = frame.returnAddress;
-    return frame;
   }
 
   pushScope() {
-    this.currentEnvironment = this.currentEnvironment.makeInner();
+    const frame = this.currentFrame;
+    frame.environment = frame.environment.makeInner();
   }
 
   popScope() {
-    this.currentEnvironment = this.currentEnvironment.outer;
+    const frame = this.currentFrame;
+    frame.environment = frame.environment.outer;
   }
 
   advance() {
-    if (this.pc >= this.currentFrame.script.code.length) {
+    if (this.pc >= this.currentFrame.code.length) {
       this.error('SegFault, end of code reached');
     }
-    const op = this.currentFrame.script.code[this.pc];
+    const op = this.currentFrame.code[this.pc];
+    if (!branchTable[op]) {
+    }
     this.pc += 1;
     return op;
   }

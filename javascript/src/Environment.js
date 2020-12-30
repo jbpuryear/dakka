@@ -56,7 +56,7 @@ class Environment {
         throw new Error(`Cannot set variable, ${name}. Outermost scope reached.`);
       }
     } else {
-      return this.setVar(name, value);
+      this.setVar(name, value);
     }
   }
 }

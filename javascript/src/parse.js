@@ -13,6 +13,7 @@ const rules = new Map([
   [Token.NUMBER, { prefix: number, infix: null, precedence: PREC.PRIMARY }],
   [Token.STRING, { prefix: string, infix: null, precedence: PREC.NONE }],
   [Token.IDENTIFIER, { prefix: variable, infix: null, precedence: PREC.PRIMARY }],
+  [Token.FUN, { prefix: lambda, infix: null, precedence: PREC.PRIMARY }],
   [Token.TRUE, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
   [Token.FALSE, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
   [Token.NULL, { prefix: boolOrNull, infix: null, precedence: PREC.PRIMARY }],
@@ -125,8 +126,66 @@ function popEnvironment() {
   environment = environment.outer;
 }
 
+function argumentList() {
+  let argCount = 0;
+  if (current.type !== 'R_PAREN') {
+    do {
+      expression();
+      argCount += 1;
+    } while (match('COMMA'));
+  }
+
+  consume('R_PAREN', "Expect ')' after arguments.");
+  return argCount;
+}
+
 function call() {
-  // TODO
+  const argCount = argumentList();
+  emitOp(OP_CODES.CALL);
+  code.push(argCount);
+}
+
+function lambda() {
+  const oldCode = code;
+  code = [];
+  const oldConstants = constants;
+  constants = new Map();
+  environment = environment.makeInner();
+
+  consume(Token.L_PAREN, 'Missing parameter list in lambda expression');
+  const params = [];
+  if (current.type !== Token.R_PAREN) {
+    do {
+      consume(Token.IDENTIFIER, `Invalid parameter name, ${current.lexeme}`);
+      params.push(prev.lexeme);
+    } while (match(Token.COMMA));
+  }
+  const arity = params.length;
+
+  let name;
+  while (name = params.pop()) {
+    emitConstant(name);
+    emitOp(OP_CODES.INITIALIZE);
+    environment.makeVar(name, true);
+  }
+
+  consume(Token.R_PAREN, 'Missing closing parenthesis after parameter list');
+
+  consume('L_BRACE', 'Missing function body');
+  while (current.type !== Token.R_BRACE && current.type !== Token.EOF) {
+    declaration();
+  }
+  consume(Token.R_BRACE, 'Unmatched block deliminator');
+
+  emitOp(OP_CODES.NULL);
+  emitOp(OP_CODES.RETURN);
+
+  const newScript = new DakkaFunction(arity, code, [...constants.keys()]);
+  code = oldCode;
+  constants = oldConstants;
+  environment = environment.outer;
+  emitConstant(newScript);
+  emitOp(OP_CODES.CLOSURE);
 }
 
 function boolOrNull() {
@@ -221,10 +280,6 @@ function parsePrecedence(prec) {
   }
 }
 
-function lambda() {
-  // TODO
-}
-
 function returnStmt() {
   if (match(Token.SEMI)) {
     emitOp(OP_CODES.NULL);
@@ -279,14 +334,15 @@ function declaration() {
     consume(Token.IDENTIFIER, 'Missing identifier in variable declaration');
     const name = prev.lexeme;
     environment.makeVar(name, false);
-    emitConstant(name);
-    emitOp(OP_CODES.DEFINE);
     if (match(Token.ASSIGN)) {
       // this lets functions call themselves
       if (current.type === Token.FUN) { environment.setVarAt(0, name, true); }
       expression();
-      emitAssign(name, 0);
-      emitOp(OP_CODES.POP);
+      emitConstant(name);
+      emitOp(OP_CODES.INITIALIZE);
+    } else {
+      emitConstant(name);
+      emitOp(OP_CODES.DEFINE);
     }
     environment.setVarAt(0, name, true);
   } else {

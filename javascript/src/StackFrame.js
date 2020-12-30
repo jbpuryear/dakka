@@ -1,7 +1,8 @@
 class StackFrame {
-  constructor(script, environment, pc) {
-    this.script = script;
-    this.returnEnvironment = environment;
+  constructor(code, constants, environment, pc) {
+    this.code = code;
+    this.constants = constants;
+    this.environment = environment;
     this.returnAddress = pc;
   }
 }
