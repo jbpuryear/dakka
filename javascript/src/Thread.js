@@ -143,6 +143,34 @@ const branchTable = {
     stack.push(val);
   },
 
+  [OP_CODES.SET_PROP](thread, stack) {
+    const target = thread.target;
+    if (!target) {
+      thread.error('Cannot set property, thread has no target object');
+      return;
+    }
+    const name = stack.pop();
+    if (!target.hasOwnProperty(name)) {
+      thread.error('Cannot set undefined property on target object');
+      return;
+    }
+    thread.target[name] = stack.pop();
+  },
+
+  [OP_CODES.GET_PROP](thread, stack) {
+    const target = thread.target;
+    if (!target) {
+      thread.error('Cannot get property, thread has no target object');
+      return;
+    }
+    const name = stack.pop();
+    if (!target.hasOwnProperty(name)) {
+      thread.error('Cannot get undefined property on target object');
+      return;
+    }
+    stack.push(thread.target[name]);
+  },
+
   [OP_CODES.CLOSURE](thread, stack) {
     const fun = thread.stack.pop();
     stack.push(new Closure(fun, thread.currentFrame.environment));
@@ -194,10 +222,15 @@ const branchTable = {
 
   [OP_CODES.LOOP](thread, stack) {
   },
+*/
 
   [OP_CODES.SLEEP](thread, stack) {
+    const time = stack.pop();
+    if (!isNumber(thread, time)) {
+      return;
+    }
+    thread.sleep = time;
   },
-*/
 
   [OP_CODES.JMP](thread, stack) {
     thread.pc = thread.advance();

@@ -16,7 +16,6 @@ declaration    → "var" IDENTIFIER ( "=" expression )? ";" ;
 ```ebnf
 statement      → exprStmt
                | sleepStmt
-               | loopStmt
                | ifStmt
                | returnStmt
                | whileStmt
@@ -24,7 +23,6 @@ statement      → exprStmt
 
 exprStmt       → expression ";" ;
 sleepStmt      → "sleep" expression ";" ;
-loopStmt       → "loop" "(" expression ")" statement ;
 ifStmt         → "if" "(" expression ")" statement
                  ( "else" statement )? ;
 returnStmt     → "return" expression? ";" ;
@@ -38,6 +36,7 @@ block          → "{" declaration* "}" ;
 expression     → assignment ;
 
 assignment     → IDENTIFIER "=" assignment
+               | property "=" assignment
                | logic_or ;
 
 logic_or       → logic_and ( "||" logic_and )* ;
@@ -49,8 +48,8 @@ factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary | call ;
 call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 primary        → "true" | "false" | "null" | NUMBER | STRING
-               | IDENTIFIER | lambda | "(" expression ")";
-
+               | IDENTIFIER | property | lambda | "(" expression ")";
+property       → "[" IDENTIFIER "]";
 lambda         → "fun" "(" parameters? ")" block ;
 ```
 

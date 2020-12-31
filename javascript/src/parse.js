@@ -6,6 +6,7 @@ import PREC from './PRECEDENCE.js';
 
 const rules = new Map([
   [Token.L_PAREN, { prefix: grouping, infix: call, precedence: PREC.CALL }],
+  [Token.L_BRACKET, { prefix: property, null: call, precedence: PREC.CALL }],
   [Token.MINUS, { prefix: unary, infix: binary, precedence: PREC.TERM }],
   [Token.PLUS, { prefix: null, infix: binary, precedence: PREC.TERM }],
   [Token.MUL, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
@@ -204,6 +205,20 @@ function string() {
   emitConstant(prev.literal);
 }
 
+function property(canAssign) {
+  consume(Token.IDENTIFIER, 'Missing identifier in target object property access');
+  const name = prev.lexeme;
+  consume(Token.R_BRACKET, 'Expected closing bracket after property identifier');
+  if (canAssign && match(Token.ASSIGN)) {
+    expression();
+    emitConstant(name);
+    emitOp(OP_CODES.SET_PROP);
+  } else {
+    emitConstant(name);
+    emitOp(OP_CODES.GET_PROP);
+  }
+}
+
 function variable(canAssign) {
   const name = prev.lexeme;
   const scopeDepth = environment.getVarDepth(name);
@@ -329,6 +344,11 @@ function expressionStmt() {
   emitOp(OP_CODES.POP);
 }
 
+function sleepStmt() {
+  expression();
+  emitOp(OP_CODES.SLEEP);
+}
+
 function whileStmt() {
   const repeat = code.length;
   consume(Token.L_PAREN, "Expect '(' after while");
@@ -395,6 +415,8 @@ function statement() {
   } else if (match(Token.WHILE)) {
     whileStmt();
     return;
+  } else if (match(Token.SLEEP)) {
+    sleepStmt();
   } else if (match(Token.RETURN)) {
     returnStmt();
   } else {

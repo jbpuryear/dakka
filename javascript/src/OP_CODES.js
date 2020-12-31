@@ -22,6 +22,8 @@ const opNames = [
   'INITIALIZE',
   'ASSIGN',
   'GET_VAR',
+  'SET_PROP',
+  'GET_PROP',
   'CLOSURE',
   'CALL',
   'RETURN',

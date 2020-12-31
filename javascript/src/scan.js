@@ -90,6 +90,8 @@ function scan(input) {
       case ')': addToken(Token.R_PAREN); break;
       case '{': addToken(Token.L_BRACE); break;
       case '}': addToken(Token.R_BRACE); break;
+      case '[': addToken(Token.L_BRACKET); break;
+      case ']': addToken(Token.R_BRACKET); break;
       case ';': addToken(Token.SEMI); break;
       case ',': addToken(Token.COMMA); break;
 
