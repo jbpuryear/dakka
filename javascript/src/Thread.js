@@ -150,7 +150,7 @@ const branchTable = {
       return;
     }
     const name = stack.pop();
-    if (!target.hasOwnProperty(name)) {
+    if (!(name in target)) {
       thread.error('Cannot set undefined property on target object');
       return;
     }
@@ -164,7 +164,7 @@ const branchTable = {
       return;
     }
     const name = stack.pop();
-    if (!target.hasOwnProperty(name)) {
+    if (!(name in target)) {
       thread.error('Cannot get undefined property on target object');
       return;
     }
@@ -184,7 +184,7 @@ const branchTable = {
     }
     if (script.isNative) {
       if (argCount !== script.func.length) {
-        script.error('Wrong number of arguments');
+        thread.error('Wrong number of arguments');
         return;
       }
       const args = [];
@@ -195,7 +195,7 @@ const branchTable = {
       stack.push(script.func.apply(null, args));
     } else {
       if (argCount !== script.func.arity) {
-        script.error('Wrong number of arguments');
+        thread.error('Wrong number of arguments');
         return;
       }
       thread.pushFrame(script);
@@ -225,7 +225,7 @@ const branchTable = {
     for (let i = 0; i < propCount; i += 1) {
       const name = stack.pop();
       const val = stack.pop();
-      if (target.hasOwnProperty(name)) {
+      if (name in target) {
         target[name] = val;
       } else {
         thread.events.emit('spawn_errored', thread, target,
@@ -235,11 +235,11 @@ const branchTable = {
     }
 
     if (argCount !== -1) {
-      const args = stack.splice(-argCount);
+      const args = argCount > 0 ? stack.splice(-argCount) : undefined;
       const script = stack.pop();
       // See THREAD
-      script.environment = script.environment.makeInner();
-      thread.vm._startThread(script, args, target);
+      const env = script.environment.makeInner();
+      thread.vm._startThread(script, env, args, target);
     }
   },
 
@@ -247,12 +247,11 @@ const branchTable = {
     const argCount = thread.advance();
     const args = stack.splice(-argCount);
     const script = stack.pop();
-    // TODO This code is a little sketchy. Top level scripts use the environment attached
-    // to their script (which are just Closure object), but we need to spawn threads like
-    // we do other function calls, so we create an inner scope first. This works, but is
-    // probably not the best or clearest place for this code. Same thing happens in SPAWN.
-    script.environment = script.environment.makeInner();
-    thread.vm._startThread(script, args, null);
+    // Top level scripts use the environment attached to their scripts (which are just
+    // Closure objects), but we need to spawn threads like we call functions, so we
+    // create an inner scope first. Same in SPAWN.
+    const env = script.environment.makeInner();
+    thread.vm._startThread(script, env, args, null);
   },
 
   [OP_CODES.SLEEP](thread, stack) {
@@ -297,7 +296,7 @@ class Thread {
     this.next = null;
   }
 
-  run(script, args = [], target, callback = null) {
+  run(script, env, args = [], target, callback = null) {
     // Args are in reverse order and become the stack for that thread.
     if (script.func.code.length === 0) {
       this.events.emit('returned', null);
@@ -311,7 +310,7 @@ class Thread {
     this.pc = 0;
     this.stack = Array.isArray(args) ? args : [];
     this.callStack = [];
-    this.pushFrame(script);
+    this.pushFrame(script, env);
     this.terminated = false;
     this.target = target;
     this.update(0);
@@ -331,9 +330,10 @@ class Thread {
     }
   }
 
-  pushFrame(script) {
+  pushFrame(script, env) {
+    const environment = env || script.environment;
     const frame = new StackFrame(script.func.code, script.func.constants,
-      script.environment, this.pc);
+      environment, this.pc);
     this.callStack.push(frame);
     this.currentFrame = frame;
     this.pc = 0;
@@ -341,8 +341,8 @@ class Thread {
 
   popFrame() {
     const frame = this.callStack.pop();
-    this.currentFrame = this.callStack[this.callStack.length - 1];
     this.pc = frame.returnAddress;
+    this.currentFrame = this.callStack[this.callStack.length - 1];
   }
 
   pushScope() {

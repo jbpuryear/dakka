@@ -100,7 +100,7 @@ class Dakka {
       compiled = script;
     }
     const close = new Closure(compiled, new Environment())
-    this._startThread(close, null, target, callback);
+    this._startThread(close, close.environment, null, target, callback);
   }
 
   update(dt) {
@@ -121,11 +121,11 @@ class Dakka {
     return s;
   }
 
-  _startThread(script, args, target, callback) {
+  _startThread(script, env, args, target, callback) {
     const thread = new Thread(this);
     thread.events.on('errored', onThreadErrored, this);
     thread.events.on('spawn_errored', onThreadSpawnErrored, this);
-    thread.run(script, args, target, callback);
+    thread.run(script, env, args, target, callback);
     if (!thread.terminated) {
       shift(this._threads, thread);
     }
