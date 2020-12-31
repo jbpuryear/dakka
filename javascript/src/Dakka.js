@@ -44,13 +44,26 @@ function onThreadErrored(thread, msg) {
   this.events.emit('errored', thread.target, msg);
 }
 
+function onThreadSpawnErrored(thread, spawnTarget, msg) {
+  remove(this._threads, thread);
+  if (this.debug) {
+    console.error(msg);
+  }
+  this.events.emit('errored', thread.target, msg);
+  this.events.emit('errored', spawnTarget, msg);
+}
+
+function defaultFactory() {
+  return {};
+}
+
 // Events
 //   errored - Emitted when a thread has a runtime error. Callbacks are passed the
 //             threads target and an error message.
 //   spawned - Emitted whenever a new target object is spawned using the provided factory
 //             function. Callbacks are passed the target object.
 class Dakka {
-  constructor(factory = null) {
+  constructor(factory = defaultFactory) {
     this.factory = factory;
     this.debug = false;
     this.events = new EventEmitter();
@@ -86,13 +99,8 @@ class Dakka {
     } else {
       compiled = script;
     }
-
-    const thread = new Thread(this, target, callback);
-    thread.events.on('errored', onThreadErrored, this);
-    thread.run(new Closure(compiled, new Environment()));
-    if (!thread.terminated) {
-      shift(this._threads, thread);
-    }
+    const close = new Closure(compiled, new Environment())
+    this._startThread(close, null, target, callback);
   }
 
   update(dt) {
@@ -104,6 +112,22 @@ class Dakka {
         remove(this._threads, t);
       }
       t = next;
+    }
+  }
+
+  _spawn() {
+    const s = this.factory();
+    this.events.emit('spawned', s);
+    return s;
+  }
+
+  _startThread(script, args, target, callback) {
+    const thread = new Thread(this);
+    thread.events.on('errored', onThreadErrored, this);
+    thread.events.on('spawn_errored', onThreadSpawnErrored, this);
+    thread.run(script, args, target, callback);
+    if (!thread.terminated) {
+      shift(this._threads, thread);
     }
   }
 }

@@ -47,6 +47,7 @@ Token.LOOP = 'LOOP';
 Token.FUN = 'FUN';
 Token.RETURN = 'RETURN';
 Token.SLEEP = 'SLEEP';
+Token.SPAWN = 'SPAWN';
 Token.EOF = 'EOF';
 
 export default Token;

@@ -12,4 +12,5 @@ export default new Map([
   ['fun', Token.FUN],
   ['return', Token.RETURN],
   ['sleep', Token.SLEEP],
+  ['spawn', Token.SPAWN],
 ]);

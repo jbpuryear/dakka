@@ -216,13 +216,30 @@ const branchTable = {
       stack.push(returnValue);
     }
   },
-/*
-  // [OP_CODES.SPAWN](thread, stack) {
-  },
 
-  [OP_CODES.LOOP](thread, stack) {
+  [OP_CODES.SPAWN](thread, stack) {
+    const argCount = thread.advance();
+    const propCount = thread.advance();
+    const target = thread.vm._spawn();
+
+    for (let i = 0; i < propCount; i += 1) {
+      const name = stack.pop();
+      const val = stack.pop();
+      if (target.hasOwnProperty(name)) {
+        target[name] = val;
+      } else {
+        thread.events.emit('spawn_errored', thread, target,
+          'Cannot assign undefined property of spawned target object');
+        return;
+      }
+    }
+
+    if (argCount !== -1) {
+      const args = stack.splice(-argCount);
+      const script = stack.pop();
+      thread.vm._startThread(script, args, target);
+    }
   },
-*/
 
   [OP_CODES.SLEEP](thread, stack) {
     const time = stack.pop();
@@ -251,15 +268,11 @@ const branchTable = {
 //              instance and error message. Used by the vm to report the error and terminate
 //              the thread.
 class Thread {
-  constructor(vm, target = null, callback = null, ctx) {
+  constructor(vm) {
     this.vm = vm;
     this.script = null;
-    this.target = target;
+    this.target = null;
     this.events = new EventEmitter();
-    if (callback) {
-      this.events.once('returned', callback, ctx);
-    }
-
     this.terminated = false;
     this.sleep = 0;
     this.pc = 0;
@@ -270,11 +283,15 @@ class Thread {
     this.next = null;
   }
 
-  run(script, args) {
+  run(script, args = [], target, callback = null) {
+    // Args are in reverse order and become the stack for that thread.
     if (script.func.code.length === 0) {
       this.events.emit('returned', null);
       this.terminated = true;
       return;
+    }
+    if (callback) {
+      this.events.once('returned', callback);
     }
     this.sleep = 0;
     this.pc = 0;
@@ -282,6 +299,7 @@ class Thread {
     this.callStack = [];
     this.pushFrame(script);
     this.terminated = false;
+    this.target = target;
     this.update(0);
   }
 

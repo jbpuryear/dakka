@@ -129,14 +129,14 @@ function popEnvironment() {
 
 function argumentList() {
   let argCount = 0;
-  if (current.type !== 'R_PAREN') {
+  if (current.type !== Token.R_PAREN) {
     do {
       expression();
       argCount += 1;
-    } while (match('COMMA'));
+    } while (match(Token.COMMA));
   }
 
-  consume('R_PAREN', "Expect ')' after arguments.");
+  consume(Token.R_PAREN, "Expect ')' after arguments.");
   return argCount;
 }
 
@@ -317,7 +317,7 @@ function parsePrecedence(prec) {
   // If assignment was allowed, but while descending to the bottom of this expression
   // we entered a higher precedence, it's possible we have an unconsumed assignment operator.
   // TL;DR: this catches bad l-values like a + b = c.
-  if (canAssign && match('ASSIGN')) {
+  if (canAssign && match(Token.ASSIGN)) {
     error(prev, 'Invalid assignment target');
   }
 }
@@ -342,6 +342,36 @@ function expression() {
 function expressionStmt() {
   expression();
   emitOp(OP_CODES.POP);
+}
+
+function spawnStmt() {
+  let argCount = -1;
+  if (match(Token.L_PAREN)) {
+    // Less one because the first argument should be the function to call
+    argCount = argumentList() - 1;
+    if (argCount === -1) {
+      error('Missing function in spawn statement')
+    }
+  }
+
+  let propCount = 0;
+  if (match(Token.L_BRACKET)) {
+    if (current.type !== 'R_BRACKET') {
+      do {
+        consume(Token.IDENTIFIER, 'Invalid property identifier');
+        const name = prev.lexeme;
+        consume(Token.ASSIGN, 'Missing property assignment');
+        expression();
+        emitConstant(name);
+        propCount += 1;
+      } while (match(Token.COMMA));
+    }
+
+    consume('R_BRACKET', "Expect ']' after properties list");
+  }
+
+  emitOp(OP_CODES.SPAWN);
+  code.push(argCount, propCount);
 }
 
 function sleepStmt() {
@@ -417,6 +447,8 @@ function statement() {
     return;
   } else if (match(Token.SLEEP)) {
     sleepStmt();
+  } else if (match(Token.SPAWN)) {
+    spawnStmt();
   } else if (match(Token.RETURN)) {
     returnStmt();
   } else {
