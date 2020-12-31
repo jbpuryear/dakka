@@ -344,6 +344,18 @@ function expressionStmt() {
   emitOp(OP_CODES.POP);
 }
 
+function threadStmt() {
+  let argCount = -1;
+  consume(Token.L_PAREN, 'Expect arguments to thread statement');
+  // Less one because the first argument should be the function to call
+  argCount = argumentList() - 1;
+  if (argCount === -1) {
+    error('Missing function in spawn statement');
+  }
+  emitOp(OP_CODES.THREAD);
+  code.push(argCount);
+}
+
 function spawnStmt() {
   let argCount = -1;
   if (match(Token.L_PAREN)) {
@@ -449,6 +461,8 @@ function statement() {
     sleepStmt();
   } else if (match(Token.SPAWN)) {
     spawnStmt();
+  } else if (match(Token.THREAD)) {
+    threadStmt();
   } else if (match(Token.RETURN)) {
     returnStmt();
   } else {

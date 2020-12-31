@@ -13,4 +13,5 @@ export default new Map([
   ['return', Token.RETURN],
   ['sleep', Token.SLEEP],
   ['spawn', Token.SPAWN],
+  ['thread', Token.THREAD],
 ]);

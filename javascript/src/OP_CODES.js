@@ -28,6 +28,7 @@ const opNames = [
   'CALL',
   'RETURN',
   'SPAWN',
+  'THREAD',
   'LOOP',
   'SLEEP',
   'JMP',

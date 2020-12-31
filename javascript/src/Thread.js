@@ -237,8 +237,22 @@ const branchTable = {
     if (argCount !== -1) {
       const args = stack.splice(-argCount);
       const script = stack.pop();
+      // See THREAD
+      script.environment = script.environment.makeInner();
       thread.vm._startThread(script, args, target);
     }
+  },
+
+  [OP_CODES.THREAD](thread, stack) {
+    const argCount = thread.advance();
+    const args = stack.splice(-argCount);
+    const script = stack.pop();
+    // TODO This code is a little sketchy. Top level scripts use the environment attached
+    // to their script (which are just Closure object), but we need to spawn threads like
+    // we do other function calls, so we create an inner scope first. This works, but is
+    // probably not the best or clearest place for this code. Same thing happens in SPAWN.
+    script.environment = script.environment.makeInner();
+    thread.vm._startThread(script, args, null);
   },
 
   [OP_CODES.SLEEP](thread, stack) {
