@@ -154,6 +154,8 @@ function lambda() {
   constants = new Map();
   environment = environment.makeInner();
 
+  const funName = match(Token.IDENTIFIER) ? prev.lexeme : null;
+
   consume(Token.L_PAREN, 'Missing parameter list in lambda expression');
   const params = [];
   if (current.type !== Token.R_PAREN) {
@@ -182,7 +184,7 @@ function lambda() {
   emitOp(OP_CODES.NULL);
   emitOp(OP_CODES.RETURN);
 
-  const newScript = new DakkaFunction(arity, code, [...constants.keys()]);
+  const newScript = new DakkaFunction(funName, arity, code, [...constants.keys()]);
   code = oldCode;
   constants = oldConstants;
   environment = environment.outer;
@@ -548,7 +550,7 @@ function parse(tkns, env = new Environment()) {
   if (hadError) {
     throw new Error('DAKKA_SYNTAX_ERROR');
   }
-  return  new DakkaFunction(0, code, [...constants.keys()]);
+  return  new DakkaFunction(null, 0, code, [...constants.keys()]);
 }
 
 export default parse;

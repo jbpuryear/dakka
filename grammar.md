@@ -50,7 +50,7 @@ call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 primary        → "true" | "false" | "null" | NUMBER | STRING
                | IDENTIFIER | property | lambda | "(" expression ")";
 property       → "[" IDENTIFIER "]";
-lambda         → "fun" "(" parameters? ")" block ;
+lambda         → "fun" IDENTIER? "(" parameters? ")" block ;
 ```
 
 ### Helper Rules
