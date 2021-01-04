@@ -85,6 +85,11 @@ class Dakka {
     }
   }
 
+  killAll() {
+    this._threads.head = null;
+    this._threads.tail = null;
+  }
+
   _spawn() {
     const s = this.factory();
     this.events.emit('spawned', s);
