@@ -1,6 +1,7 @@
 import CodeMirror from 'codemirror';
 import Phaser from 'phaser';
 import Dakka from '../../javascript/src/Dakka.js';
+import EventEmitter from 'eventemitter3';
 import List from '../../javascript/src/List.js';
 import circle from './circle.png';
 
@@ -79,6 +80,7 @@ class Bullet {
 const BULLET_POOL_SIZE = 100000;
 class BulletManager {
   constructor(scene, key) {
+    this.events = new EventEmitter();
     this.bounds = {
       x: scene.game.scale.gameSize.width,
       y: scene.game.scale.gameSize.height
@@ -108,7 +110,7 @@ class BulletManager {
     }
   }
 
-  spawn(x, y, vx, vy) {
+  spawn() {
     let b = this.deadBullets.pop()
     if (!b) {
       if (this.count === BULLET_POOL_SIZE) {
@@ -128,6 +130,7 @@ class BulletManager {
     b.kill();
     this.liveBullets.remove(b);
     this.deadBullets.push(b);
+    this.events.emit('killed', b);
   }
 
   killAll() {
@@ -147,11 +150,17 @@ class Scene extends Phaser.Scene {
   }
 
   create() {
-    let bullets = new BulletManager(this, 'circle');
+    const bullets = new BulletManager(this, 'circle');
     this.bullets = bullets;
 
-    this.dakka = new Dakka(() => {
+    const dakka = new Dakka(() => {
       return bullets.spawn();
+    });
+    this.dakka = dakka;
+
+
+    bullets.events.on('killed', (bullet) => {
+      dakka.killByTarget(bullet);
     });
 
     this.dakka.events.on('errored', function (bullet, msg) {

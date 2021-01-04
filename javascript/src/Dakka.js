@@ -38,6 +38,7 @@ class Dakka {
     this.debug = false;
     this.events = new EventEmitter();
     this._threads = new List();
+    this._targetMap = new Map();
   }
 
   static compile(src) {
@@ -71,6 +72,7 @@ class Dakka {
     }
     const close = new Closure(compiled, new Environment())
     this._startThread(close, close.environment, null, target, callback);
+    return spawn;
   }
 
   update(dt) {
@@ -85,9 +87,22 @@ class Dakka {
     }
   }
 
+  killByTarget(target) {
+    const thread = this._targetMap.get(target);
+    console.log('aaaaaaaaa', thread);
+    console.log(this._targetMap);
+    if (thread) {
+      this._targetMap.delete(target);
+      this._threads.remove(thread);
+      return true;
+    }
+    return false;
+  }
+
   killAll() {
     this._threads.head = null;
     this._threads.tail = null;
+    this._targetMap.clear();
   }
 
   _spawn() {
@@ -103,7 +118,10 @@ class Dakka {
     thread.run(script, env, args, target, callback);
     if (!thread.terminated) {
       this._threads.shift(thread);
-    }
+      if (target) {
+        this._targetMap.set(target, thread);
+      }
+    } 
   }
 }
 
