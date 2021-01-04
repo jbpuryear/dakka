@@ -33,4 +33,15 @@ describe('Expressions', function expressionTest() {
       done();
     });
   });
+
+
+  it('Evaluates ternary expressions', (done) => {
+    dakka.run('return true ? false ? "bad" : "good" : "bad";', null, false, (val) => {
+      assert.equal('good', val);
+    });
+    dakka.run('return false ? false ? "bad" : "bad" : "good";', null, false, (val) => {
+      assert.equal("good", val);
+      done();
+    });
+  });
 });

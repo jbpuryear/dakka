@@ -28,6 +28,7 @@ const rules = new Map([
   [Token.LESS_EQ, { prefix: null, infix: binary, precedence: PREC.COMPARISON }],
   [Token.AND, { prefix: null, infix: and, precedence: PREC.AND }],
   [Token.OR, { prefix: null, infix: or, precedence: PREC.OR }],
+  [Token.QUESTION, { prefix: null, infix: ternary, precedence: PREC.TERNARY }],
 ]);
 
 let code;
@@ -298,6 +299,27 @@ function binary() {
     case Token.LESS_EQ: emitOp(OP_CODES.LESS_EQ); break;
   }
 }
+
+function ternary() {
+  emitOp(OP_CODES.JMP_FALSE);
+  const falseJump = code.length;
+  code.push(0);
+
+  const opType = prev.type;
+  const rule = getRule(opType);
+  parsePrecedence(rule.precedence);
+  consume(Token.COLON, 'Missing ternary expression branch');
+  emitOp(OP_CODES.JMP);
+  const endJump = code.length;
+  code.push(0);
+
+  code[falseJump] = code.length;
+
+  parsePrecedence(rule.precedence);
+
+  code[endJump] = code.length;
+}
+
 
 function and() {
   emitOp(OP_CODES.JMP_FALSE);

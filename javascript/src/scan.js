@@ -93,6 +93,8 @@ function scan(input) {
       case '[': addToken(Token.L_BRACKET); break;
       case ']': addToken(Token.R_BRACKET); break;
       case ';': addToken(Token.SEMI); break;
+      case ':': addToken(Token.COLON); break;
+      case '?': addToken(Token.QUESTION); break;
       case ',': addToken(Token.COMMA); break;
 
       case '=': addToken(match('=') ? Token.EQUAL : Token.ASSIGN); break;
