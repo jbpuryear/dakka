@@ -2,39 +2,9 @@ import EventEmitter from 'eventemitter3';
 import Environment from './Environment.js';
 import Thread from './Thread.js';
 import Closure from './Closure.js';
+import List from './List.js';
 import scan from './scan.js';
 import parse from './parse.js';
-
-// These functions are for dealing with the thread list.
-function shift(list, thread) {
-  thread.prev = null;
-  thread.next = list.head;
-  if (list.head === null) {
-    list.tail = thread;
-  } else {
-    list.head.prev = thread;
-  }
-  list.head = thread;
-}
-
-function remove(list, thread) {
-  if (list.head === thread) {
-    list.head = thread.next;
-  }
-  if (list.tail === thread) {
-    list.tail = thread.prev;
-  }
-  if (thread.prev) {
-    thread.prev.next = thread.next;
-  }
-  if (thread.next) {
-    thread.next.prev = thread.prev;
-  }
-  thread.next = null;
-  thread.prev = null;
-}
-
-// TODO Figure out where to move this, system for extending natives.
 
 function onThreadErrored(thread, msg) {
   remove(this._threads, thread);
@@ -45,7 +15,7 @@ function onThreadErrored(thread, msg) {
 }
 
 function onThreadSpawnErrored(thread, spawnTarget, msg) {
-  remove(this._threads, thread);
+  this._threads.remove(thread);
   if (this.debug) {
     console.error(msg);
   }
@@ -67,7 +37,7 @@ class Dakka {
     this.factory = factory;
     this.debug = false;
     this.events = new EventEmitter();
-    this._threads = { head: null, tail: null };
+    this._threads = new List();
   }
 
   static compile(src) {
@@ -109,7 +79,7 @@ class Dakka {
       const { next } = t;
       t.update(dt);
       if (t.terminated) {
-        remove(this._threads, t);
+        this._threads.remove(t);
       }
       t = next;
     }
@@ -127,7 +97,7 @@ class Dakka {
     thread.events.on('spawn_errored', onThreadSpawnErrored, this);
     thread.run(script, env, args, target, callback);
     if (!thread.terminated) {
-      shift(this._threads, thread);
+      this._threads.shift(thread);
     }
   }
 }
