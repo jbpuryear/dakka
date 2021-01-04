@@ -486,6 +486,15 @@ function ifStmt() {
   code[elsePatchIdx] = code.length;
 }
 
+function functionStmt() {
+  consume(Token.IDENTIFIER, 'Expected function name in declaration');
+  const name = prev.lexeme;
+  environment.makeVar(name, true);
+  lambda();
+  emitConstant(name);
+  emitOp(OP_CODES.INITIALIZE);
+}
+
 function block() {
   pushEnvironment();
   emitOp(OP_CODES.SCOPE_PUSH);
@@ -504,6 +513,9 @@ function statement() {
   if (match(Token.L_BRACE)) {
     block();
     return;
+  } else if (match(Token.FUN)) {
+    functionStmt();
+    return
   } else if (match(Token.IF)) {
     ifStmt();
     return;
