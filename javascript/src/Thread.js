@@ -360,8 +360,6 @@ class Thread {
       this.error('SegFault, end of code reached');
     }
     const op = this.currentFrame.code[this.pc];
-    if (!branchTable[op]) {
-    }
     this.pc += 1;
     return op;
   }

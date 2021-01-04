@@ -19,7 +19,7 @@ describe('Identifiers', () => {
   });
 
   it('Recognizes keywords', () => {
-    const lexemes = ['var', 'loop', 'while', 'true', 'if'];
+    const lexemes = ['var', 'while', 'true', 'if'];
     const tokens = scan(lexemes.join(' '));
 
     for (let i = 0; i < lexemes.length; i += 1) {

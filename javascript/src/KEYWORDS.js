@@ -8,7 +8,6 @@ export default new Map([
   ['if', Token.IF],
   ['else', Token.ELSE],
   ['while', Token.WHILE],
-  ['loop', Token.LOOP],
   ['fun', Token.FUN],
   ['return', Token.RETURN],
   ['sleep', Token.SLEEP],
