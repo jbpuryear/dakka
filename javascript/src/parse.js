@@ -32,6 +32,7 @@ const rules = new Map([
 ]);
 
 let code;
+let lineMap;
 let constants;
 let environment;
 let tokens;
@@ -49,7 +50,7 @@ function error(token, msg) {
   if (panicMode) { return; }
   panicMode = true;
   hadError = true;
-  console.error(`${token.line}: ${msg}`);
+  console.error(`DAKA SYNTAX ERROR [line ${token.line}] ${msg}`);
 }
 
 function synchronize() {
@@ -76,6 +77,9 @@ function synchronize() {
 function advance() {
   prev = current;
   current = tokens[idx];
+  if (prev && (current.line !== prev.line)) {
+    lineMap.push(code.length);
+  }
   idx += 1;
 }
 
@@ -95,7 +99,7 @@ function consume(type, err) {
   }
 }
 
-function emitOp(op) {
+function emitOp(op, line) {
   code.push(op);
 }
 
@@ -151,9 +155,12 @@ function call() {
 function lambda() {
   const oldCode = code;
   code = [];
+  const oldLineMap = lineMap;
+  lineMap = [];
   const oldConstants = constants;
   constants = new Map();
   environment = environment.makeInner();
+  const startLine = current.line;
 
   consume(Token.L_PAREN, 'Missing parameter list in lambda expression');
   const params = [];
@@ -183,8 +190,9 @@ function lambda() {
   emitOp(OP_CODES.NULL);
   emitOp(OP_CODES.RETURN);
 
-  const newScript = new DakkaFunction(arity, code, [...constants.keys()]);
+  const newScript = new DakkaFunction(arity, code, [...constants.keys()], lineMap, startLine);
   code = oldCode;
+  lineMap = oldLineMap;
   constants = oldConstants;
   environment = environment.outer;
   const index = constants.size;
@@ -362,7 +370,7 @@ function parsePrecedence(prec) {
   const canAssign = prec <= PREC.ASSIGNMENT;
   rule(canAssign);
 
-  while (prec <= getRule(current.type).precedence && current.type !== 'EOF') {
+  while (prec <= getRule(current.type).precedence && current.type !== Token.EOF) {
     advance();
     getRule(prev.type).infix();
   }
@@ -564,6 +572,7 @@ function declaration() {
 
 function parse(tkns, env = new Environment()) {
   code = [];
+  lineMap = [];
   constants = new Map();
   environment = env;
   tokens = tkns;
@@ -574,7 +583,7 @@ function parse(tkns, env = new Environment()) {
   panicMode = false;
 
   advance();
-  while (!match(Token.EOF)) {
+  while (current.type !== Token.EOF) {
     declaration();
   }
 
@@ -584,7 +593,7 @@ function parse(tkns, env = new Environment()) {
   if (hadError) {
     throw new Error('DAKKA_SYNTAX_ERROR');
   }
-  return  new DakkaFunction(0, code, [...constants.keys()]);
+  return  new DakkaFunction(0, code, [...constants.keys()], lineMap, 1);
 }
 
 export default parse;

@@ -7,7 +7,7 @@ import scan from './scan.js';
 import parse from './parse.js';
 
 function onThreadErrored(thread, msg) {
-  remove(this._threads, thread);
+  this._threads.remove(this._threads, thread);
   if (this.debug) {
     console.error(msg);
   }

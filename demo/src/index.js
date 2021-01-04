@@ -155,7 +155,9 @@ class Scene extends Phaser.Scene {
     });
 
     this.dakka.events.on('errored', function (bullet, msg) {
-      this.bullets.delete(bullet);
+      if (bullet) {
+        this.bullets.killBullet(bullet);
+      }
       console.error(msg);
     }, this);
   }

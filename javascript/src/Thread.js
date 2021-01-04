@@ -353,8 +353,7 @@ class Thread {
 
   pushFrame(script, env) {
     const environment = env || script.environment;
-    const frame = new StackFrame(script.func.code, script.func.constants,
-      environment, this.pc);
+    const frame = new StackFrame(script, environment, this.pc);
     this.callStack.push(frame);
     this.currentFrame = frame;
     this.pc = 0;
@@ -379,6 +378,7 @@ class Thread {
   advance() {
     if (this.pc >= this.currentFrame.code.length) {
       this.error('SegFault, end of code reached');
+      return;
     }
     const op = this.currentFrame.code[this.pc];
     this.pc += 1;
@@ -387,7 +387,8 @@ class Thread {
 
   error(msg) {
     this.terminated = true;
-    this.events.emit('errored', this, msg);
+    const line = this.currentFrame.script.func.getLine(this.pc - 1);
+    this.events.emit('errored', this, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
   }
 }
 

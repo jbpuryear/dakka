@@ -59,7 +59,7 @@ function match(c) {
 }
 
 function error(lineNumber, msg) {
-  console.error(`${lineNumber}: ${msg}`);
+  console.error(`DAKA LEXICAL ERROR [${lineNumber}] ${msg}`);
   while (!isWS(peek()) && !eof()) {
     advance();
   }
