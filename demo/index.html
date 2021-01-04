@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="lib/codemirror.css"></link>
+    <link rel="stylesheet" href="lib/darcula.css"></link>
+    <style type="text/css">
+      * { padding: 0px; margin: 0px; }
+
+      #wrapper {
+        display: flex;
+        height: 100vh;
+      }
+
+      #editor-pane {
+        flex-grow: 0;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        width: 600px;
+      }
+
+      #editor {
+        flex-grow: 1;
+      }
+
+      #editor-menu {
+        flex-grow: 0;
+        flex-shrink: 0;
+      }
+
+      .CodeMirror {
+        height: 100%;
+        width: 100%;
+      }
+
+      #game-pane {
+        flex-grow: 1;
+        flex-shrink: 1;
+        overflow: auto;
+        height: 100%;
+      }
+
+      body {
+        background-color: ##ffffff1a;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrapper">
+      <div id="editor-pane">
+        <div id="editor-menu">
+          <button id="run">Run</button>
+        </div>
+        <div id="editor"></div>
+      </div>
+      <div id="game-pane">
+      </div>
+    </div>
+  </body>
+</html>
