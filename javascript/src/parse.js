@@ -188,8 +188,10 @@ function lambda() {
   code = oldCode;
   constants = oldConstants;
   environment = environment.outer;
-  emitConstant(newScript);
+  const index = constants.size;
+  constants.set(newScript, index);
   emitOp(OP_CODES.CLOSURE);
+  code.push(index);
 }
 
 function boolOrNull() {

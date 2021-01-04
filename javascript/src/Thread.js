@@ -192,7 +192,8 @@ const branchTable = {
   },
 
   [OP_CODES.CLOSURE](thread, stack) {
-    const fun = thread.stack.pop();
+    const idx = thread.advance();
+    const fun = thread.currentFrame.constants[idx];
     stack.push(new Closure(fun, thread.currentFrame.environment));
   },
 
