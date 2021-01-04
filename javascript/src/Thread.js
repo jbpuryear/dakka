@@ -92,6 +92,26 @@ const branchTable = {
     }
   },
 
+  [OP_CODES.DIV](thread, stack) {
+    const b = stack.pop();
+    const a = stack.pop();
+    if (areNumbers(thread, a, b)) {
+      if (b === 0) {
+        thread.error('Divide by zero');
+      } else {
+        stack.push(a / b);
+      }
+    }
+  },
+
+  [OP_CODES.MOD](thread, stack) {
+    const b = stack.pop();
+    const a = stack.pop();
+    if (areNumbers(thread, a, b)) {
+      stack.push(a % b);
+    }
+  },
+
   [OP_CODES.NEGATE](thread, stack) {
     const a = stack.pop();
     if (isNumber(thread, a)) {

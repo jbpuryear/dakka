@@ -11,6 +11,7 @@ const rules = new Map([
   [Token.PLUS, { prefix: null, infix: binary, precedence: PREC.TERM }],
   [Token.MUL, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
   [Token.DIV, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
+  [Token.MOD, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
   [Token.NUMBER, { prefix: number, infix: null, precedence: PREC.PRIMARY }],
   [Token.STRING, { prefix: string, infix: null, precedence: PREC.NONE }],
   [Token.IDENTIFIER, { prefix: variable, infix: null, precedence: PREC.PRIMARY }],
@@ -257,6 +258,7 @@ function binary() {
     case Token.MINUS: emitOp(OP_CODES.SUB); break;
     case Token.MUL: emitOp(OP_CODES.MUL); break;
     case Token.DIV: emitOp(OP_CODES.DIV); break;
+    case Token.MOD: emitOp(OP_CODES.MOD); break;
     case Token.EQUAL: emitOp(OP_CODES.EQUAL); break;
     case Token.NOT_EQUAL: emitOp(OP_CODES.NOT_EQUAL); break;
     case Token.GREATER: emitOp(OP_CODES.GREATER); break;

@@ -124,6 +124,15 @@ class BulletManager {
     this.liveBullets.remove(b);
     this.deadBullets.push(b);
   }
+
+  killAll() {
+    let b = this.liveBullets.head;
+    while(b) {
+      let next = b.next;
+      this.killBullet(b, false);
+      b = next;
+    }
+  }
 }
 
 
@@ -164,5 +173,7 @@ const game = new Phaser.Game({
 });
 
 document.getElementById('run').addEventListener('click', () => {
+  scene.dakka.killAll();
+  scene.bullets.killAll();
   scene.dakka.run(editor.getValue());
 });

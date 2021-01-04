@@ -13,6 +13,7 @@ const opNames = [
   'SUB',
   'MUL',
   'DIV',
+  'MOD',
   'NEGATE',
   'CONST',
   'POP',

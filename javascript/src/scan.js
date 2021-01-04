@@ -99,6 +99,7 @@ function scan(input) {
       case '+': addToken(match('=') ? Token.PLUS_ASSIGN : Token.PLUS); break;
       case '-': addToken(match('=') ? Token.MINUS_ASSIGN : Token.MINUS); break;
       case '*': addToken(match('=') ? Token.MUL_ASSIGN : Token.MUL); break;
+      case '%': addToken(match('=') ? Token.MOD_ASSIGN : Token.MOD); break;
       case '!': addToken(match('=') ? Token.NOT_EQUAL : Token.NOT); break;
       case '>': addToken(match('=') ? Token.GREATER_EQ : Token.GREATER); break;
       case '<': addToken(match('=') ? Token.LESS_EQ : Token.LESS); break;

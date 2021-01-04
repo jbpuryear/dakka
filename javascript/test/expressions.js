@@ -17,4 +17,20 @@ describe('Expressions', function expressionTest() {
       done();
     });
   });
+
+  it('Performs modulus', (done) => {
+    dakka.run('return 13 % 3;', false, (ret) => {
+      assert.equal(1, ret);
+    });
+    dakka.run('return -13 % 3;', false, (ret) => {
+      assert.equal(-1, ret);
+    });
+    dakka.run('return 13 % -3;', false, (ret) => {
+      assert.equal(1, ret);
+    });
+    dakka.run('return -13 % -3;', false, (ret) => {
+      assert.equal(-1, ret);
+      done();
+    });
+  });
 });
