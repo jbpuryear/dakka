@@ -27,4 +27,10 @@ describe('Assignment', () => {
   it('Will not assign to undeclared variables', () => {
     assert.throws(() => { dakka.run('empty = 1;'); });
   });
+
+  it('Assigns with modifier', () => {
+    dakka.run("var foo = 2; foo = 5; foo -= 1; foo /= 2; foo *= 3; return foo %= 4;", null, (val) => {
+      assert.equal(2, val);
+    });
+  });
 });

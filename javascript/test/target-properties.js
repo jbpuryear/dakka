@@ -20,6 +20,13 @@ describe('Target Properties', () => {
     });
   });
 
+  it('Sets a property with modifier', () => {
+    const t = { foo: 2 };
+    dakka.run("[foo] += 5; [foo] -= 1; [foo] /= 2; [foo] *= 3; return [foo] %= 4;", t, () => {
+      assert.equal(t.foo, 1);
+    });
+  });
+
   it('Throws on undefined properties', () => {
     const t = {};
     assert.throws(() => { dakka.run('[foo] = 1;', t) });

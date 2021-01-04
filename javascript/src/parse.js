@@ -210,8 +210,22 @@ function property(canAssign) {
   consume(Token.IDENTIFIER, 'Missing identifier in target object property access');
   const name = prev.lexeme;
   consume(Token.R_BRACKET, 'Expected closing bracket after property identifier');
-  if (canAssign && match(Token.ASSIGN)) {
+
+  if (canAssign && (match(Token.ASSIGN) || match(Token.PLUS_ASSIGN) || match(Token.MINUS_ASSIGN)
+      || match(Token.MUL_ASSIGN) || match(Token.DIV_ASSIGN) || match(Token.MOD_ASSIGN))) {
+    const assignType = prev.type;
+    if (assignType !== Token.ASSIGN) {
+      emitConstant(name);
+      emitOp(OP_CODES.GET_PROP);
+    }
     expression();
+    switch (assignType) {
+      case Token.PLUS_ASSIGN: emitOp(OP_CODES.ADD); break;
+      case Token.MINUS_ASSIGN: emitOp(OP_CODES.SUB); break;
+      case Token.MUL_ASSIGN: emitOp(OP_CODES.MUL); break;
+      case Token.DIV_ASSIGN: emitOp(OP_CODES.DIV); break;
+      case Token.MOD_ASSIGN: emitOp(OP_CODES.MOD); break;
+    }
     emitConstant(name);
     emitOp(OP_CODES.SET_PROP);
   } else {
@@ -231,8 +245,21 @@ function variable(canAssign) {
     error(prev, `Cannot access variable, ${name}, in its own initializer`);
     return;
   }
-  if (canAssign && match(Token.ASSIGN)) {
+
+  if (canAssign && (match(Token.ASSIGN) || match(Token.PLUS_ASSIGN) || match(Token.MINUS_ASSIGN)
+      || match(Token.MUL_ASSIGN) || match(Token.DIV_ASSIGN) || match(Token.MOD_ASSIGN))) {
+    const assignType = prev.type;
+    if (assignType !== Token.ASSIGN) {
+      emitGetVar(name, scopeDepth);
+    }
     expression();
+    switch (assignType) {
+      case Token.PLUS_ASSIGN: emitOp(OP_CODES.ADD); break;
+      case Token.MINUS_ASSIGN: emitOp(OP_CODES.SUB); break;
+      case Token.MUL_ASSIGN: emitOp(OP_CODES.MUL); break;
+      case Token.DIV_ASSIGN: emitOp(OP_CODES.DIV); break;
+      case Token.MOD_ASSIGN: emitOp(OP_CODES.MOD); break;
+    }
     emitAssign(name, scopeDepth);
   } else {
     emitGetVar(name, scopeDepth);
