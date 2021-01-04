@@ -4,8 +4,8 @@ import Dakka from '../src/Dakka.js';
 const dakka = new Dakka();
 dakka.events.on('errored', () => { throw new Error(); });
 
-describe('If Statement', (done) => {
-  it('Handles dangling else', () => {
+describe('If Statement', () => {
+  it('Handles dangling else', (done) => {
     dakka.run('if (true) if (false) return "bad"; else return "good";', false, (val) => {
       assert.equal('good', val);
     });

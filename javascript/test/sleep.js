@@ -19,7 +19,7 @@ dakka.events.on('errored', (_, msg) => { throw new Error(msg); });
 describe('Sleep', () => {
   it('Sleeps', (done) => {
     const start = performance.now();
-    dakka.run('sleep 500; return 1;', null, false, (val) => {
+    dakka.run('sleep 500; return 1;', false, (val) => {
       assert.equal(1, val);
       const elapsed = performance.now() - start;
       assert(elapsed > 480);
@@ -30,7 +30,7 @@ describe('Sleep', () => {
 
   it('Sleeps in a nest', (done) => {
     const start = performance.now();
-    dakka.run('var f = fun() { sleep 500; }; f(); return 1;', null, false, (val) => {
+    dakka.run('var f = fun() { sleep 500; }; f(); return 1;', false, (val) => {
       assert.equal(1, val);
       const elapsed = performance.now() - start;
       assert(elapsed > 480);

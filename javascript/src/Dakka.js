@@ -40,15 +40,11 @@ class Dakka {
     this._threads = new List();
   }
 
-  static compile(src, name = null) {
-    let compiled = parse(scan(src));
-    if (compiled) {
-      compiled.name = name;
-    }
-    return compiled;
+  static compile(src) {
+    return parse(scan(src));
   }
 
-  run(script, name = null, spawn = false, callback = null) {
+  run(script, spawn = false, callback) {
     let target;
     if (spawn === true) {
       target = typeof this.factory === 'function' ? this.factory() : {};
@@ -61,7 +57,7 @@ class Dakka {
     let compiled;
     if (typeof script === 'string') {
       try {
-        compiled = Dakka.compile(script, name);
+        compiled = Dakka.compile(script);
       } catch (e) {
         if (this.debug) {
           console.error(e);
