@@ -26,6 +26,8 @@ class Bullet {
   }
 
   reset() {
+    this._sprite.x = 0;
+    this._sprite.y = 0;
     this.speed = 0;
     this.angle = 0;
     this._sprite.visible = true;
@@ -90,6 +92,8 @@ class BulletManager {
     let t = scene.game.textures.get(key).get(0);
     this.bulletSprites.x -= t.width/2;
     this.bulletSprites.y -= t.height/2;
+
+    this.count = 0;
   }
 
   update(dt) {
@@ -112,6 +116,7 @@ class BulletManager {
       } else {
         let sprite = this.bulletSprites.create(0, 0);
         b = new Bullet(sprite);
+        this.count += 1;
       }
     }
     b.reset();
