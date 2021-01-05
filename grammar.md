@@ -21,6 +21,8 @@ statement      → exprStmt
                | whileStmt
                | forStmt
                | repeatStmt
+               | threadStmt
+               | spawnStmt
                | block ;
 
 exprStmt       → expression ";" ;
@@ -31,6 +33,10 @@ returnStmt     → "return" expression? ";" ;
 whileStmt      → "while" "(" expression ")" statement ;
 forStmt        → "for" "(" "var" IDENTIFIER "=" expression "," expression  ("," expression)? ")" statement ;
 repeatStmt     → "repeat" "(" expression ")" statement ;
+threadStmt     → "thread" "(" expression ("," expression)* ")" ";" ;
+spawnStmt      → "spawn"
+                   ( "(" expression ("," expression)* ")" )? ";"
+                   ( "[" (IDENTIFIER "=" expression ("," IDENTIFIER "=" expression)*)? "]" )? ;
 block          → "{" declaration* "}" ;
 ```
 
