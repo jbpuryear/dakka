@@ -5,6 +5,7 @@ import Closure from './Closure.js';
 import List from './List.js';
 import scan from './scan.js';
 import parse from './parse.js';
+import decompile from './decompile.js';
 
 function onThreadErrored(thread, msg) {
   this._threads.remove(this._threads, thread);
@@ -125,5 +126,7 @@ class Dakka {
     } 
   }
 }
+
+Dakka.decompile = decompile;
 
 export default Dakka;
