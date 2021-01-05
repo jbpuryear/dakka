@@ -28,10 +28,12 @@ function defaultFactory() {
 }
 
 // Events
-//   errored - Emitted when a thread has a runtime error. Callbacks are passed the
-//             threads target and an error message.
+//   errored - Emitted when a thread has a runtime error, or if run is called with a string
+//             that fails to compile. Callbacks are passed the threads target and an error message.
 //   spawned - Emitted whenever a new target object is spawned using the provided factory
 //             function. Callbacks are passed the target object.
+//   compile-error - Emitted by compile. Useful if compiling seperate from running. Callbacks are
+//                   passed the error message.
 class Dakka {
   constructor(factory = defaultFactory) {
     this.factory = factory;
@@ -42,7 +44,16 @@ class Dakka {
   }
 
   static compile(src) {
-    return parse(scan(src));
+    let script = null;
+    try {
+      script = parse(scan(src));
+    } catch (e) {
+      if (this.debug) {
+        console.error(e);
+      }
+      this.events.emit('compile-error', e);
+    }
+    return script;
   }
 
   run(script, spawn = false, callback) {
@@ -57,14 +68,13 @@ class Dakka {
 
     let compiled;
     if (typeof script === 'string') {
-      try {
-        compiled = Dakka.compile(script);
-      } catch (e) {
+      compiled = Dakka.compile(script);
+      if (!compiled) {
+        const msg = 'Failed to compile';
         if (this.debug) {
-          console.error(e);
-          console.error('Failed to compile');
+          console.error(msg);
         }
-        this.events.emit('errored', target, 'Failed to compile');
+        this.events.emit('errored', target, msg);
         return;
       }
     } else {
