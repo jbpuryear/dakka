@@ -293,6 +293,37 @@ const branchTable = {
       thread.pc = addr;
     }
   },
+
+  [OP_CODES.FOR_TEST](thread, stack) {
+    const l = stack.length;
+    const initVal = stack[l - 3];
+    const max = stack[l - 2];
+    const increment = stack[l - 1];
+    if (typeof initVal !== 'number' || typeof max !== 'number' || typeof increment !== 'number') {
+      thread.error('Invalid expression in for loop initializer');
+    }
+    if (increment === 0) {
+      thread.error('For loop increment cannot be 0');
+    }
+    stack[l - 3] += increment;
+    stack.push(initVal);
+    stack.push(increment > 0 ? initVal <= max : initVal >= max);
+  },
+
+  [OP_CODES.REPEAT](thread, stack) {
+    const counter = stack[stack.length - 1];
+    if (typeof counter === 'number') {
+      if (counter > 0) {
+        stack[stack.length - 1] -= 1;
+        stack.push(true);
+      } else {
+        stack.pop();
+        stack.push(false);
+      }
+    } else {
+      thread.error(`Expected numerical expression in repeat statement, found ${counter}`);
+    }
+  },
 };
 
 // Events

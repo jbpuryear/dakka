@@ -19,6 +19,8 @@ statement      → exprStmt
                | ifStmt
                | returnStmt
                | whileStmt
+               | forStmt
+               | repeatStmt
                | block ;
 
 exprStmt       → expression ";" ;
@@ -27,6 +29,8 @@ ifStmt         → "if" "(" expression ")" statement
                  ( "else" statement )? ;
 returnStmt     → "return" expression? ";" ;
 whileStmt      → "while" "(" expression ")" statement ;
+forStmt        → "for" "(" "var" IDENTIFIER "=" expression "," expression  ("," expression)? ")" statement ;
+repeatStmt     → "repeat" "(" expression ")" statement ;
 block          → "{" declaration* "}" ;
 ```
 

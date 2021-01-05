@@ -30,10 +30,11 @@ const opNames = [
   'RETURN',
   'SPAWN',
   'THREAD',
-  'LOOP',
   'SLEEP',
   'JMP',
   'JMP_FALSE',
+  'FOR_TEST',
+  'REPEAT',
 ];
 
 const OP_CODES = {};

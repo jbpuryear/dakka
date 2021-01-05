@@ -452,6 +452,80 @@ function sleepStmt() {
   emitOp(OP_CODES.SLEEP);
 }
 
+function repeatStmt() {
+  consume(Token.L_PAREN, "Expect '(' after repeat");
+  expression();
+  consume(Token.R_PAREN, "Expect ')' after repeat argument");
+
+  const loopStart = code.length;
+  emitOp(OP_CODES.REPEAT);
+
+  emitOp(OP_CODES.JMP_FALSE);
+  const jumpPatch = code.length;
+  code.push(0);
+  emitOp(OP_CODES.POP);
+
+  statement();
+
+  emitOp(OP_CODES.JMP);
+  code.push(loopStart);
+
+  code[jumpPatch] = code.length;
+  emitOp(OP_CODES.POP);
+}
+
+function forStmt() {
+  consume(Token.L_PAREN, "Expect '(' after for");
+  consume(Token.VAR, "Expect variable declaration in for statement");
+  consume(Token.IDENTIFIER, "Missing identifier in for loop variable declaration")
+  const loopVarName = prev.lexeme;
+  consume(Token.ASSIGN, "Missing assignment in for loop variable declaration")
+  expression();
+  consume(Token.COMMA, "Expect end condition in for statement");
+  expression();
+  if (match(Token.COMMA)) {
+    expression();
+  } else {
+    emitConstant(1);
+  }
+  consume(Token.R_PAREN, "Expect ')' after for loop arguments");
+
+  const testIdx = code.length;
+  // FOR_TEST is super weird. It pushes the loop variable initializer value
+  // onto the stack, then the result of the test.
+  emitOp(OP_CODES.FOR_TEST);
+  emitOp(OP_CODES.JMP_FALSE);
+  const testJump = code.length;
+  code.push(0);
+  // Here we pop the test result from FOR_TEST
+  emitOp(OP_CODES.POP);
+
+  pushEnvironment();
+  emitOp(OP_CODES.SCOPE_PUSH);
+
+  // Push loop var name to stack then initialize in the new scope that
+  // we create for each iteration. This finally pops the value pushed
+  // by FOR_TEST.
+  environment.makeVar(loopVarName, true);
+  emitConstant(loopVarName);
+  emitOp(OP_CODES.INITIALIZE);
+
+  // Compile the loop body
+  statement();
+
+  popEnvironment();
+  emitOp(OP_CODES.SCOPE_POP);
+
+  emitOp(OP_CODES.JMP);
+  code.push(testIdx);
+
+  code[testJump] = code.length;
+
+  // Pop the FOR_TEST result and for loop var initializer, as well as
+  // the init, max, and increment expressions that start the loop.
+  for (let i = 0; i < 5; i += 1) { emitOp(OP_CODES.POP); }
+}
+
 function whileStmt() {
   const repeat = code.length;
   consume(Token.L_PAREN, "Expect '(' after while");
@@ -529,6 +603,12 @@ function statement() {
     return;
   } else if (match(Token.WHILE)) {
     whileStmt();
+    return;
+  } else if (match(Token.FOR)) {
+    forStmt();
+    return;
+  } else if (match(Token.REPEAT)) {
+    repeatStmt();
     return;
   } else if (match(Token.SLEEP)) {
     sleepStmt();
