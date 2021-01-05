@@ -266,7 +266,10 @@ const branchTable = {
 
   [OP_CODES.THREAD](thread, stack) {
     const argCount = thread.advance();
-    const args = stack.splice(-argCount);
+    let args = null;
+    if (argCount > 0) {
+      args = stack.splice(-argCount);
+    }
     const script = stack.pop();
     // Top level scripts use the environment attached to their scripts (which are just
     // Closure objects), but we need to spawn threads like we call functions, so we

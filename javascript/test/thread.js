@@ -12,23 +12,11 @@ dakka.debug = true;
 dakka.events.on('errored', (_, msg) => { throw new Error(msg); });
 
 
-describe('Spawn', () => {
-  it('Starts a thread', () => {
-    const script = `
-      var f = fun(c) {
-        [foo] = c;
-      };
-      var g = fun(a, b) {
-        spawn(f, a + b);
-      };
-      thread (g, 3, 2);`
-    dakka.run(script, false, () => {
-      assert.equal(obj.foo, 5);
+describe('Thread', () => {
+  it('Starts a new thread', (done) => {
+    dakka.run("var f = fun(label) { [foo] = label; }; thread(fun() { spawn(f, 'qux'); });", false, () => {
+      assert.equal(obj.foo, 'qux');
+      done();
     });
-  });
-
-  it('Throws on syntax error', () => {
-    assert.throws(() => { dakka.run("thread;") });
-    assert.throws(() => { dakka.run("thread ();") });
   });
 });
