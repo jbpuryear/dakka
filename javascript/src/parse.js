@@ -103,26 +103,33 @@ function emitOp(op, line) {
   code.push(op);
 }
 
-function emitConstant(val) {
-  emitOp(OP_CODES.CONST);
-  const exists = constants.has(val);
-  const index = exists ? constants.get(val) : constants.size;
+function emitConstantIdx(cnst) {
+  const exists = constants.has(cnst);
+  const index = exists ? constants.get(cnst) : constants.size;
   if (!exists) {
-    constants.set(val, index);
+    constants.set(cnst, index);
   }
   code.push(index);
 }
 
-function emitAssign(name, scopeDepth) {
-  emitConstant(name);
-  emitOp(OP_CODES.ASSIGN);
-  code.push(scopeDepth);
+function emitConstant(cnst) {
+  emitOp(OP_CODES.CONST);
+  emitConstantIdx(cnst);
 }
 
 function emitGetVar(name, scopeDepth) {
-  emitConstant(name);
   emitOp(OP_CODES.GET_VAR);
+  emitConstantIdx(name);
   code.push(scopeDepth);
+}
+
+function emitJump() {
+  code.push(0);
+  return code.length - 1;
+}
+
+function patchJump(idx) {
+  code[idx] = code.length;
 }
 
 function pushEnvironment() {
@@ -174,8 +181,8 @@ function lambda() {
 
   let name;
   while (name = params.pop()) {
-    emitConstant(name);
     emitOp(OP_CODES.INITIALIZE);
+    emitConstantIdx(name);
     environment.makeVar(name, true);
   }
 
@@ -226,8 +233,8 @@ function property(canAssign) {
       || match(Token.MUL_ASSIGN) || match(Token.DIV_ASSIGN) || match(Token.MOD_ASSIGN))) {
     const assignType = prev.type;
     if (assignType !== Token.ASSIGN) {
-      emitConstant(name);
       emitOp(OP_CODES.GET_PROP);
+      emitConstantIdx(name);
     }
     expression();
     switch (assignType) {
@@ -237,11 +244,11 @@ function property(canAssign) {
       case Token.DIV_ASSIGN: emitOp(OP_CODES.DIV); break;
       case Token.MOD_ASSIGN: emitOp(OP_CODES.MOD); break;
     }
-    emitConstant(name);
     emitOp(OP_CODES.SET_PROP);
+    emitConstantIdx(name);
   } else {
-    emitConstant(name);
     emitOp(OP_CODES.GET_PROP);
+    emitConstantIdx(name);
   }
 }
 
@@ -271,7 +278,10 @@ function variable(canAssign) {
       case Token.DIV_ASSIGN: emitOp(OP_CODES.DIV); break;
       case Token.MOD_ASSIGN: emitOp(OP_CODES.MOD); break;
     }
-    emitAssign(name, scopeDepth);
+    emitOp(OP_CODES.ASSIGN);
+    emitConstantIdx(name);
+    code.push(scopeDepth);
+
   } else {
     emitGetVar(name, scopeDepth);
   }
@@ -308,50 +318,46 @@ function binary() {
 
 function ternary() {
   emitOp(OP_CODES.JMP_FALSE);
-  const falseJump = code.length;
-  code.push(0);
+  const falseJump = emitJump();
 
   const opType = prev.type;
   const rule = getRule(opType);
   parsePrecedence(rule.precedence);
   consume(Token.COLON, 'Missing ternary expression branch');
-  emitOp(OP_CODES.JMP);
-  const endJump = code.length;
-  code.push(0);
 
-  code[falseJump] = code.length;
+  emitOp(OP_CODES.JMP);
+  const endJump = emitJump;
+
+  patchJump(falseJump);
 
   parsePrecedence(rule.precedence);
 
-  code[endJump] = code.length;
+  patchJump(endJump);
 }
 
 
 function and() {
   emitOp(OP_CODES.JMP_FALSE);
-  const patchIdx = code.length;
-  code.push(0);
+  const patchIdx = emitJump();
   
   emitOp(OP_CODES.POP);
   parsePrecedence(PREC.AND);
 
-  code[patchIdx] = code.length;
+  patchJump(patchIdx);
 }
 
 function or() {
   emitOp(OP_CODES.JMP_FALSE);
-  const elseJump = code.length;
-  code.push(0);
+  const elseJump = emitJump();
 
   emitOp(OP_CODES.JMP);
-  const endJump = code.length;
-  code.push(0);
+  const endJump = emitJump();
 
-  code[elseJump] = code.length;
+  patchJump(elseJump);
   emitOp(OP_CODES.POP);
 
   parsePrecedence(PREC.OR);
-  code[endJump] = code.length;
+  patchJump(endJump);
 }
 
 function grouping() {
@@ -427,24 +433,24 @@ function spawnStmt() {
     }
   }
 
-  let propCount = 0;
+  const propNames = [];
   if (match(Token.L_BRACKET)) {
     if (current.type !== 'R_BRACKET') {
       do {
         consume(Token.IDENTIFIER, 'Invalid property identifier');
-        const name = prev.lexeme;
+        propNames.push(prev.lexeme);
         consume(Token.ASSIGN, 'Missing property assignment');
         expression();
-        emitConstant(name);
-        propCount += 1;
       } while (match(Token.COMMA));
     }
-
     consume('R_BRACKET', "Expect ']' after properties list");
   }
 
   emitOp(OP_CODES.SPAWN);
-  code.push(argCount, propCount);
+  code.push(argCount, propNames.length);
+  for (let i = propNames.length - 1; i >= 0; i -= 1) {
+    emitConstantIdx(propNames[i]);
+  }
 }
 
 function sleepStmt() {
@@ -461,8 +467,7 @@ function repeatStmt() {
   emitOp(OP_CODES.REPEAT);
 
   emitOp(OP_CODES.JMP_FALSE);
-  const jumpPatch = code.length;
-  code.push(0);
+  const jumpPatch = emitJump();
   emitOp(OP_CODES.POP);
 
   statement();
@@ -470,7 +475,7 @@ function repeatStmt() {
   emitOp(OP_CODES.JMP);
   code.push(loopStart);
 
-  code[jumpPatch] = code.length;
+  patchJump(jumpPatch);
   emitOp(OP_CODES.POP);
 }
 
@@ -495,8 +500,7 @@ function forStmt() {
   // onto the stack, then the result of the test.
   emitOp(OP_CODES.FOR_TEST);
   emitOp(OP_CODES.JMP_FALSE);
-  const testJump = code.length;
-  code.push(0);
+  const testJump = emitJump();
   // Here we pop the test result from FOR_TEST
   emitOp(OP_CODES.POP);
 
@@ -507,8 +511,8 @@ function forStmt() {
   // we create for each iteration. This finally pops the value pushed
   // by FOR_TEST.
   environment.makeVar(loopVarName, true);
-  emitConstant(loopVarName);
   emitOp(OP_CODES.INITIALIZE);
+  emitConstantIdx(loopVarName);
 
   // Compile the loop body
   statement();
@@ -519,7 +523,7 @@ function forStmt() {
   emitOp(OP_CODES.JMP);
   code.push(testIdx);
 
-  code[testJump] = code.length;
+  patchJump(testJump)
 
   // Pop the FOR_TEST result and for loop var initializer, as well as
   // the init, max, and increment expressions that start the loop.
@@ -533,14 +537,13 @@ function whileStmt() {
   consume(Token.R_PAREN, "Expect ')' after condition");
 
   emitOp(OP_CODES.JMP_FALSE);
-  const end = code.length;
-  code.push(0);
+  const end = emitJump();
 
   statement();
 
   emitOp(OP_CODES.JMP);
   code.push(repeat);
-  code[end] = code.length;
+  patchJump(end);
 }
 
 function ifStmt() {
@@ -549,23 +552,21 @@ function ifStmt() {
   consume(Token.R_PAREN, "Expect ')' after condition");
 
   emitOp(OP_CODES.JMP_FALSE);
-  const ifPatchIdx = code.length;
-  code.push(0);
+  const ifPatchIdx = emitJump();
 
   emitOp(OP_CODES.POP);
   statement();
 
   emitOp(OP_CODES.JMP);
-  const elsePatchIdx = code.length;
-  code.push(0);
-  code[ifPatchIdx] = code.length;
+  const elsePatchIdx = emitJump()
+  patchJump(ifPatchIdx);
 
   emitOp(OP_CODES.POP);
 
   if (match(Token.ELSE)) {
     statement();
   }
-  code[elsePatchIdx] = code.length;
+  patchJump(elsePatchIdx);
 }
 
 function functionStmt() {
@@ -573,8 +574,8 @@ function functionStmt() {
   const name = prev.lexeme;
   environment.makeVar(name, true);
   lambda();
-  emitConstant(name);
   emitOp(OP_CODES.INITIALIZE);
+  emitConstantIdx(name);
 }
 
 function block() {
@@ -634,12 +635,11 @@ function declaration() {
       // this lets functions call themselves
       if (current.type === Token.FUN) { environment.setVarAt(0, name, true); }
       expression();
-      emitConstant(name);
-      emitOp(OP_CODES.INITIALIZE);
     } else {
-      emitConstant(name);
-      emitOp(OP_CODES.DEFINE);
+      emitOp(OP_CODES.NULL);
     }
+    emitOp(OP_CODES.INITIALIZE);
+    emitConstantIdx(name);
     environment.setVarAt(0, name, true);
   } else {
     statement();

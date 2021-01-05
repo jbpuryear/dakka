@@ -19,7 +19,6 @@ const opNames = [
   'POP',
   'SCOPE_PUSH',
   'SCOPE_POP',
-  'DEFINE',
   'INITIALIZE',
   'ASSIGN',
   'GET_VAR',

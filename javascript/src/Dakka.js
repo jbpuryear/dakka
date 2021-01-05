@@ -44,16 +44,7 @@ class Dakka {
   }
 
   static compile(src) {
-    let script = null;
-    try {
-      script = parse(scan(src));
-    } catch (e) {
-      if (this.debug) {
-        console.error(e);
-      }
-      this.events.emit('compile-error', e);
-    }
-    return script;
+    return parse(scan(src));
   }
 
   run(script, spawn = false, callback) {
@@ -68,13 +59,13 @@ class Dakka {
 
     let compiled;
     if (typeof script === 'string') {
-      compiled = Dakka.compile(script);
-      if (!compiled) {
-        const msg = 'Failed to compile';
+      try {
+        compiled = Dakka.compile(script);
+      } catch (e) {
         if (this.debug) {
-          console.error(msg);
+          console.error(e);
         }
-        this.events.emit('errored', target, msg);
+        this.events.emit('errored', target, e);
         return;
       }
     } else {

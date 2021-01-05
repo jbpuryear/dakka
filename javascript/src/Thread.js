@@ -137,29 +137,27 @@ const branchTable = {
     thread.popScope();
   },
 
-  [OP_CODES.DEFINE](thread, stack) {
-    const varName = stack.pop();
-    thread.currentFrame.environment.makeVar(varName, null);
-  },
-
   [OP_CODES.INITIALIZE](thread, stack) {
-    const varName = stack.pop();
+    const frame = thread.currentFrame;
     const val = stack.pop();
-    thread.currentFrame.environment.makeVar(varName, val);
+    const varName = frame.constants[thread.advance()];
+    frame.environment.makeVar(varName, val);
   },
 
   [OP_CODES.ASSIGN](thread, stack) {
+    const frame = thread.currentFrame;
+    const varName = frame.constants[thread.advance()];
     const scopeDepth = thread.advance();
-    const name = stack.pop();
     // Leave the value on the stack, assignment returns a value.
     const value = stack[stack.length - 1];
-    thread.currentFrame.environment.setVarAt(scopeDepth, name, value);
+    frame.environment.setVarAt(scopeDepth, varName, value);
   },
 
   [OP_CODES.GET_VAR](thread, stack) {
+    const frame = thread.currentFrame;
+    const varName = frame.constants[thread.advance()];
     const scopeDepth = thread.advance();
-    const name = stack.pop();
-    const val = thread.currentFrame.environment.getVarAt(scopeDepth, name);
+    const val = frame.environment.getVarAt(scopeDepth, varName);
     stack.push(val);
   },
 
@@ -169,7 +167,7 @@ const branchTable = {
       thread.error('Cannot set property, thread has no target object');
       return;
     }
-    const name = stack.pop();
+    const name = thread.currentFrame.constants[thread.advance()];
     if (!(name in target)) {
       thread.error('Cannot set undefined property on target object');
       return;
@@ -183,7 +181,7 @@ const branchTable = {
       thread.error('Cannot get property, thread has no target object');
       return;
     }
-    const name = stack.pop();
+    const name = thread.currentFrame.constants[thread.advance()];
     if (!(name in target)) {
       thread.error('Cannot get undefined property on target object');
       return;
@@ -242,9 +240,10 @@ const branchTable = {
     const argCount = thread.advance();
     const propCount = thread.advance();
     const target = thread.vm._spawn();
+    const constants = thread.currentFrame.constants;
 
     for (let i = 0; i < propCount; i += 1) {
-      const name = stack.pop();
+      const name = constants[thread.advance()];
       const val = stack.pop();
       if (name in target) {
         target[name] = val;
