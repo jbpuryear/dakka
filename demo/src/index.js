@@ -1,13 +1,54 @@
 import CodeMirror from 'codemirror';
+import simpleMode from 'codemirror/addon/mode/simple.js';
+import js from 'codemirror/mode/javascript/javascript.js';
 import Phaser from 'phaser';
 import Dakka from '../../javascript/src/Dakka.js';
 import EventEmitter from 'eventemitter3';
 import List from '../../javascript/src/List.js';
 import circle from './circle.png';
 
+CodeMirror.defineSimpleMode("dakka", {
+    // The start state contains the rules that are intially used
+  start: [
+    {regex: /'/, token: "string", next: "sqstring"},
+    {regex: /"/, token: "string", next: "dqstring"},
+    {regex: /(?:if|else|while|for|repeat|fun|return|sleep|spawn|thread)\b/, token: "keyword"},
+    {regex: /(?:var|global)\b/, token: "keyword"},
+    {regex: /true|false|null/, token: "atom"},
+    {regex: /\d+\.?\d*/, token: "number"},
+    {regex: /\/\/.*/, token: "comment"},
+    {regex: /[-+\/=*<>!%]+/, token: "operator"},
+    {regex: /[\{\[\(]/, indent: true},
+    {regex: /[\}\]\)]/, dedent: true},
+    {regex: /[a-z$][\w$]*/, token: "variable"},
+  ],
+
+  sqstring: [
+    {regex: /.*?'/, token: "string", next: "start"},
+    {regex: /.*/, token: "string"},
+  ],
+
+  dqstring: [
+    {regex: /.*?"/, token: "string", next: "start"},
+    {regex: /.*/, token: "string"},
+  ],
+
+  meta: {
+    dontIndentStates: ["sqstring", "dqstring"],
+    lineComment: "//",
+    electricChars: "]})",
+  }
+});
+
 const editor = CodeMirror(document.getElementById('editor'), {
+  extraKeys: {
+    "Tab": function (cm) {
+      cm.replaceSelection("  " , "end");
+    },
+  },
   lineNumbers: true,
   theme: 'darcula',
+  mode: 'dakka',
 });
 
 class Bullet {

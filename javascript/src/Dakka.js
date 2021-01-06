@@ -104,8 +104,6 @@ class Dakka {
 
   killByTarget(target) {
     const thread = this._targetMap.get(target);
-    console.log('aaaaaaaaa', thread);
-    console.log(this._targetMap);
     if (thread) {
       this._targetMap.delete(target);
       this._threads.remove(thread);
