@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import Environment from './Environment.js';
+import DefaultEnvironment from './DefaultEnvironment.js';
 import Thread from './Thread.js';
 import Closure from './Closure.js';
 import List from './List.js';
@@ -33,13 +33,12 @@ function defaultFactory() {
 //             that fails to compile. Callbacks are passed the threads target and an error message.
 //   spawned - Emitted whenever a new target object is spawned using the provided factory
 //             function. Callbacks are passed the target object.
-//   compile-error - Emitted by compile. Useful if compiling seperate from running. Callbacks are
-//                   passed the error message.
 class Dakka {
   constructor(factory = defaultFactory) {
     this.factory = factory;
     this.debug = false;
     this.events = new EventEmitter();
+    this.global = new DefaultEnvironment();
     this._threads = new List();
     this._targetMap = new Map();
   }
@@ -72,9 +71,23 @@ class Dakka {
     } else {
       compiled = script;
     }
-    const close = new Closure(compiled, new Environment())
+    const close = new Closure(compiled, this.global.makeInner())
     this._startThread(close, close.environment, null, target, callback);
     return spawn;
+  }
+
+  addNative(name, val) {
+    const type = typeof val;
+    switch (type) {
+      case 'number':
+      case 'string':
+      case 'function':
+        this.global.makeVar(name, val);
+        return true;
+      default:
+        this.events.emit('error', null, `Can't add native, invalid type '${type}'`);
+        return false;
+    }
   }
 
   update(dt) {

@@ -24,8 +24,11 @@ export default function(func) {
       case OP_CODES.CONST:
       case OP_CODES.CLOSURE:
       case OP_CODES.INITIALIZE:
+      case OP_CODES.INIT_GLOBAL:
       case OP_CODES.ASSIGN:
       case OP_CODES.GET_VAR:
+      case OP_CODES.SET_GLOBAL:
+      case OP_CODES.GET_GLOBAL:
       case OP_CODES.SET_PROP:
       case OP_CODES.GET_PROP: {
         i += 1;
@@ -37,7 +40,7 @@ export default function(func) {
       case OP_CODES.CALL:
       case OP_CODES.THREAD: {
         i += 1;
-        console.log(`${name} args ${code[i]}`);
+        console.log(`${name} ARGS ${code[i]}`);
         break;
       }
 

@@ -44,6 +44,7 @@ Token.TRUE = 'TRUE';
 Token.FALSE = 'FALSE';
 Token.NULL = 'NULL';
 Token.VAR = 'VAR';
+Token.GLOBAL = 'GLOBAL';
 Token.IF = 'IF';
 Token.ELSE = 'ELSE';
 Token.WHILE = 'WHILE';

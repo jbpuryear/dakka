@@ -5,6 +5,7 @@ export default new Map([
   ['false', Token.FALSE],
   ['null', Token.NULL],
   ['var', Token.VAR],
+  ['global', Token.GLOBAL],
   ['if', Token.IF],
   ['else', Token.ELSE],
   ['while', Token.WHILE],

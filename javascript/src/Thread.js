@@ -153,6 +153,33 @@ const branchTable = {
     frame.environment.setVarAt(scopeDepth, varName, value);
   },
 
+  [OP_CODES.INIT_GLOBAL](thread, stack) {
+    const name = thread.currentFrame.constants[thread.advance()]
+    try {
+      thread.vm.global.makeVar(name, stack.pop());
+    } catch (e) {
+      thread.error(`Can't initialize global, '${name}', already exists`);
+    }
+  },
+
+  [OP_CODES.GET_GLOBAL](thread, stack) {
+    const name = thread.currentFrame.constants[thread.advance()]
+    try {
+      stack.push(thread.vm.global.getVar(name));
+    } catch (e) {
+      thread.error(`Can't access undeclared variable, '${name}'`);
+    }
+  },
+
+  [OP_CODES.SET_GLOBAL](thread, stack) {
+    const name = thread.currentFrame.constants[thread.advance()]
+    try {
+      thread.vm.global.setVar(name, stack.pop());
+    } catch (e) {
+      thread.error(`Can't assign to undeclared variable, '${name}'`);
+    }
+  },
+
   [OP_CODES.GET_VAR](thread, stack) {
     const frame = thread.currentFrame;
     const varName = frame.constants[thread.advance()];
@@ -198,12 +225,10 @@ const branchTable = {
   [OP_CODES.CALL](thread, stack) {
     const argCount = thread.advance();
     const script = stack[stack.length - 1 - argCount];
-    if (!(script instanceof Closure)) {
-      thread.error('Cannot call non-function primitive');
-    }
-    if (script.isNative) {
-      if (argCount !== script.func.length) {
-        thread.error('Wrong number of arguments');
+
+    if (typeof script === 'function') {
+      if (argCount !== script.length) {
+        thread.error(`Wrong number of arguments to native function, ${script.toString()}`);
         return;
       }
       const args = [];
@@ -211,8 +236,20 @@ const branchTable = {
         args.push(stack.pop());
       }
       stack.pop();
-      stack.push(script.func.apply(null, args));
+      const ret = script.apply(null, args);
+      switch (typeof ret) {
+        case 'number':
+        case 'string':
+        case 'function':
+          break;
+        default:
+          thread.error(`Invalid return type from native function, ${script.toString()}`);
+      }
+      stack.push(ret);
     } else {
+      if (!(script instanceof Closure)) {
+        thread.error('Cannot call non-function primitive');
+      }
       if (argCount !== script.func.arity) {
         thread.error('Wrong number of arguments');
         return;

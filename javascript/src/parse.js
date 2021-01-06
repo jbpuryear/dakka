@@ -255,11 +255,9 @@ function property(canAssign) {
 function variable(canAssign) {
   const name = prev.lexeme;
   const scopeDepth = environment.getVarDepth(name);
-  if (scopeDepth < 0) {
-    error(prev, `Cannot access undeclared variable, ${name}`);
-    return;
-  }
-  if (environment.getVarAt(scopeDepth, name) === false) {
+  const type = scopeDepth === -1 ? 'global' : 'local';
+
+  if (type === 'local' && environment.getVarAt(scopeDepth, name) === false) {
     error(prev, `Cannot access variable, ${name}, in its own initializer`);
     return;
   }
@@ -268,7 +266,12 @@ function variable(canAssign) {
       || match(Token.MUL_ASSIGN) || match(Token.DIV_ASSIGN) || match(Token.MOD_ASSIGN))) {
     const assignType = prev.type;
     if (assignType !== Token.ASSIGN) {
-      emitGetVar(name, scopeDepth);
+      if (type === 'global') {
+        emitOp(OP_CODES.GET_GLOBAL);
+        emitConstantIdx(name);
+      } else {
+        emitGetVar(name, scopeDepth);
+      }
     }
     expression();
     switch (assignType) {
@@ -278,12 +281,21 @@ function variable(canAssign) {
       case Token.DIV_ASSIGN: emitOp(OP_CODES.DIV); break;
       case Token.MOD_ASSIGN: emitOp(OP_CODES.MOD); break;
     }
-    emitOp(OP_CODES.ASSIGN);
-    emitConstantIdx(name);
-    code.push(scopeDepth);
-
+    if (type === 'global') {
+      emitOp(OP_CODES.SET_GLOBAL);
+      emitConstantIdx(name);
+    } else {
+      emitOp(OP_CODES.ASSIGN);
+      emitConstantIdx(name);
+      code.push(scopeDepth);
+    }
   } else {
-    emitGetVar(name, scopeDepth);
+    if (type === 'global') {
+      emitOp(OP_CODES.GET_GLOBAL);
+      emitConstantIdx(name);
+    } else {
+      emitGetVar(name, scopeDepth);
+    }
   }
 }
 
@@ -627,20 +639,28 @@ function statement() {
 }
 
 function declaration() {
-  if (match(Token.VAR)) {
-    consume(Token.IDENTIFIER, 'Missing identifier in variable declaration');
+  if (match(Token.VAR) || match(Token.GLOBAL)) {
+    const type = prev.type;
+    consume(Token.IDENTIFIER, `Missing identifier in ${type} variable declaration`);
     const name = prev.lexeme;
-    environment.makeVar(name, false);
+    if (type === Token.VAR) {
+      environment.makeVar(name, false);
+    }
     if (match(Token.ASSIGN)) {
       // this lets functions call themselves
-      if (current.type === Token.FUN) { environment.setVarAt(0, name, true); }
+      if (current.type === Token.FUN && type === 'local') { environment.setVarAt(0, name, true); }
       expression();
     } else {
       emitOp(OP_CODES.NULL);
     }
-    emitOp(OP_CODES.INITIALIZE);
-    emitConstantIdx(name);
-    environment.setVarAt(0, name, true);
+    if (type === Token.VAR) {
+      emitOp(OP_CODES.INITIALIZE);
+      emitConstantIdx(name);
+      environment.setVarAt(0, name, true);
+    } else {
+      emitOp(OP_CODES.INIT_GLOBAL);
+      emitConstantIdx(name);
+    }
   } else {
     statement();
   }
