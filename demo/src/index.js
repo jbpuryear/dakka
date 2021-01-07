@@ -210,11 +210,13 @@ class Scene extends Phaser.Scene {
       }
       console.error(msg);
     }, this);
+    this.fps = this.add.text(32, 32);
   }
 
   update(_, dt) {
     this.dakka.update(dt);
     this.bullets.update(dt);
+    this.fps.text = this.game.loop.actualFps.toFixed(2);
   }
 }
 const scene = new Scene();
