@@ -6,25 +6,27 @@ dakka.debug = true;
 dakka.events.on('errored', (_, msg) => { throw new Error(msg); });
 
 describe('While Statements', () => {
-  it('Handles single expression bodies', () => {
+  it('Handles single expression bodies', (done) => {
     const script = `var c = 0;
       while (c < 3) c = c + 1;
       return c;`;
     dakka.run(script, false, (val) => {
       assert.equal(3, val);
+      done();
     });
   });
 
-  it('Handles complex statement bodies', () => {
+  it('Handles complex statement bodies', (done) => {
     dakka.run(`while (false) if (true) 1; else 2;`, false, (val) => {
       assert.equal(null, val);
     });
     dakka.run(`while (false) while (true) 1;`, false, (val) => {
       assert.equal(null, val);
+      done();
     });
   });
 
-  it('Returns closure from loop', () => {
+  it('Returns closure from loop', (done) => {
     const script = `var f = fun() {
         while (true) {
           var i = "i";
@@ -37,6 +39,7 @@ describe('While Statements', () => {
       return h();`;
     dakka.run(script, false, (val) => {
       assert.equal('i', val);
+      done();
     });
   });
 });

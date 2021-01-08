@@ -72,7 +72,7 @@ class Dakka {
       compiled = script;
     }
     const close = new Closure(compiled, this.global.makeInner())
-    this._startThread(close, close.environment, null, target, callback);
+    this._startThread(close, null, target, callback);
     return spawn;
   }
 
@@ -124,11 +124,11 @@ class Dakka {
     return s;
   }
 
-  _startThread(script, env, args, target, callback) {
+  _startThread(script, args, target, callback) {
     const thread = new Thread(this);
     thread.events.on('errored', onThreadErrored, this);
     thread.events.on('spawn_errored', onThreadSpawnErrored, this);
-    thread.run(script, env, args, target, callback);
+    thread.run(script, args, target, callback);
     if (!thread.terminated) {
       this._threads.shift(thread);
       if (target) {

@@ -1,8 +1,7 @@
 class Closure {
-  constructor(fn, env, isNative=false) {
+  constructor(fn) {
     this.func = fn;
-    this.environment = env;
-    this.isNative = isNative;
+    this.upvalues = [];
   }
 }
 

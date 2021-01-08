@@ -42,6 +42,4 @@ describe('Function calls', () => {
     assert.throws(() => { dakka.run('var a = null; a();') });
     assert.throws(() => { dakka.run('var a = true; a();') });
   });
-
-
 });

@@ -1,4 +1,4 @@
-// Current best: about 13 seconds
+// Current best: about 7.25 seconds
 
 import Dakka from '../src/Dakka.js';
 import { performance } from 'perf_hooks';

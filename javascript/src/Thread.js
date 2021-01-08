@@ -1,6 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import StackFrame from './StackFrame.js';
 import Closure from './Closure.js';
+import Upvalue from './Upvalue.js';
 import OP_CODES from './OP_CODES.js';
 
 function isNumber(thread, operand) {
@@ -25,7 +26,6 @@ function areNumbers(thread, a, b) {
 class Thread {
   constructor(vm) {
     this.vm = vm;
-    this.script = null;
     this.target = null;
     this.events = new EventEmitter();
     this.terminated = false;
@@ -35,9 +35,10 @@ class Thread {
     this.frame = null;
     this.prev = null;
     this.next = null;
+    this.openUpvalues = null;
   }
 
-  run(script, env, args = [], target, callback = null) {
+  run(script, args = [], target, callback = null) {
     // Args are in reverse order and become the stack for that thread.
     if (script.func.code.length === 0) {
       this.events.emit('returned', null);
@@ -50,7 +51,7 @@ class Thread {
     this.sleep = 0;
     this.stack = Array.isArray(args) ? args : [];
     this.callStack = [];
-    this.pushFrame(new StackFrame(script, env));
+    this.pushFrame(new StackFrame(script));
     this.terminated = false;
     this.target = target;
     this.update(0);
@@ -198,7 +199,7 @@ class Thread {
         case 19: { // SET_GLOBAL
           const name = constants[this.advance()]
           try {
-            this.vm.global.setVar(name, stack.pop());
+            this.vm.global.setVar(name, stack[stack.length - 1]);
           } catch (e) {
             this.error(`Can't assign to undeclared variable, '${name}'`);
           }
@@ -228,10 +229,22 @@ class Thread {
           break;
         }
 
-        case 23: { // SET_PROP
+        case 23: { // SET_UPVALUE
+          const slot = this.advance();
+          this.frame.script.upvalues[slot].setValue(stack[stack.length - 1]);
+          break;
+        }
+
+        case 24: { // GET_UPVALUE
+          const slot = this.advance();
+          stack.push(this.frame.script.upvalues[slot].getValue());
+          break;
+        }
+
+        case 25: { // SET_PROP
           const target = this.target;
           if (!target) {
-            this.error('Cannot set property, this has no target object');
+            this.error('Cannot set property, thread has no target object');
             return;
           }
           const name = constants[this.advance()];
@@ -243,7 +256,7 @@ class Thread {
           break;
         }
 
-        case 24: { // GET_PROP
+        case 26: { // GET_PROP
           const target = this.target;
           if (!target) {
             this.error('Cannot get property, this has no target object');
@@ -258,13 +271,24 @@ class Thread {
           break;
         }
 
-        case 25: { // CLOSURE
+        case 27: { // CLOSURE
           const fun = constants[this.advance()];
-          stack.push(new Closure(fun, this.frame.environment));
+          const upvalCount = this.advance();
+          const close = new Closure(fun);
+          for (var i = 0; i < upvalCount; i += 1) {
+            const isLocal = this.advance();
+            const slot = this.advance();
+            if (isLocal) {
+              close.upvalues.push(this.captureUpvalue(this.frame.slots + slot));
+            } else {
+              close.upvalues.push(this.frame.script.upvalues[slot]);
+            }
+          }
+          stack.push(close);
           break;
         }
 
-        case 26: { // CALL
+        case 28: { // CALL
           const argCount = this.advance();
           const script = stack[stack.length - 1 - argCount];
 
@@ -297,19 +321,20 @@ class Thread {
               return;
             }
             const slots = this.stack.length - argCount;
-            this.pushFrame(new StackFrame(script, script.environment, slots));
+            this.pushFrame(new StackFrame(script, slots));
             constants = this.frame.constants;
           }
           break;
         }
 
-        case 27: { // RETURN
+        case 29: { // RETURN
           if (this.callStack.length === 1) {
             this.events.emit('returned', this.stack.pop());
             this.terminated = true;
           } else {
             const returnValue = stack.pop();
             // This also pops all the functions arguments.
+            this.closeUpvalues(this.frame.slots);
             this.popFrame();
             constants = this.frame.constants;
             // The called function is still sitting on here on the stack, so
@@ -320,7 +345,7 @@ class Thread {
           break;
         }
 
-        case 28: { // SPAWN
+        case 30: { // SPAWN
           const argCount = this.advance();
           const propCount = this.advance();
           const target = this.vm._spawn();
@@ -341,28 +366,23 @@ class Thread {
             const args = argCount > 0 ? stack.splice(-argCount) : undefined;
             const script = stack.pop();
             // See this
-            const env = script.environment.makeInner();
-            this.vm._startThread(script, env, args, target);
+            this.vm._startThread(script, args, target);
           }
           break;
         }
 
-        case 29: { // THREAD
+        case 31: { // THREAD
           const argCount = this.advance();
           let args = null;
           if (argCount > 0) {
             args = stack.splice(-argCount);
           }
           const script = stack.pop();
-          // Top level scripts use the environment attached to their scripts (which are just
-          // Closure objects), but we need to spawn thiss like we call functions, so we
-          // create an inner scope first. Same in SPAWN.
-          const env = script.environment.makeInner();
-          this.vm._startThread(script, env, args, null);
+          this.vm._startThread(script, args, null);
           break;
         }
 
-        case 30: { // SLEEP
+        case 32: { // SLEEP
           const time = stack.pop();
           if (!isNumber(this, time)) {
             return;
@@ -371,12 +391,12 @@ class Thread {
           break;
         }
 
-        case 31: { // JMP
+        case 33: { // JMP
           this.frame.pc = this.advance();
           break;
         }
 
-        case 32: { // JMP_FALSE
+        case 34: { // JMP_FALSE
           const addr = this.advance();
           if(!stack[stack.length - 1]) {
             this.frame.pc = addr;
@@ -384,7 +404,7 @@ class Thread {
           break;
         }
 
-        case 33: { // FOR_TEST
+        case 35: { // FOR_TEST
           const l = stack.length;
           const initVal = stack[l - 3];
           const max = stack[l - 2];
@@ -401,7 +421,7 @@ class Thread {
           break;
         }
 
-        case 34: { // REPEAT
+        case 36: { // REPEAT
           const counter = stack[stack.length - 1];
           if (typeof counter === 'number') {
             if (counter > 0) {
@@ -414,6 +434,12 @@ class Thread {
           } else {
             this.error(`Expected numerical expression in repeat statement, found ${counter}`);
           }
+          break;
+        }
+
+        case 37: { // CLOSE_UPVALUE
+          this.closeUpvalues(stack.length - 1);
+          stack.pop();
           break;
         }
       }
@@ -429,6 +455,39 @@ class Thread {
     const frame = this.callStack.pop();
     this.stack.length = frame.slots;
     this.frame = this.callStack[this.callStack.length - 1];
+  }
+
+  captureUpvalue(slot) {
+    let prevUpvalue = null;
+    let upvalue = this.openUpvalues;
+
+    while (upvalue !== null && upvalue.slot > slot) {
+      prevUpvalue = upvalue;
+      upvalue = upvalue.next;
+    }
+
+    if (upvalue && upvalue.slot === slot) {
+      return upvalue;
+    }
+
+    const createdUpvalue = new Upvalue(this.stack, slot);
+    createdUpvalue.next = upvalue;
+
+    if (!prevUpvalue) {
+      this.openUpvalues = createdUpvalue;
+    } else {
+      prevUpvalue.next = createdUpvalue;
+    }
+
+    return createdUpvalue;
+  }
+
+  closeUpvalues(slot) {
+    while(this.openUpvalues && this.openUpvalues.slot >= slot) {
+      const upvalue = this.openUpvalues;
+      upvalue.value = this.stack[upvalue.slot];
+      this.openUpvalues = upvalue.next;
+    }
   }
 
   advance() {

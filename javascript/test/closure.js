@@ -6,24 +6,24 @@ dakka.debug = true;
 dakka.events.on('errored', (_, msg) => { throw new Error(msg); });
 
 describe('Closures', () => {
-  it('Assigns to closure', () => {
+  it('Assigns to closure', (done) => {
     const script = `var f;
-    var a = 2;
-    {
-      var a = 5;
-      f = fun(b) {
-        a = a + 1;
-        return b + a;
-      };
-    }
-    return f(a) + f(a);`;
-
+      var a = 2;
+      {
+        var a = 5;
+        f = fun(b) {
+          a = a + 1;
+          return b + a;
+        };
+      }
+      return f(a) + f(a);`;
     dakka.run(script, false, (val) => {
       assert.equal(17, val);
+      done();
     });
   });
-
-  it('Assigns to shadowed later', () => {
+return;
+  it('Assigns to shadowed later', (done) => {
     const script = `var a = 'outer';
     {
       var assign = fun() {
@@ -36,10 +36,11 @@ describe('Closures', () => {
 
     dakka.run(script, false, (val) => {
       assert.equal('assigned', val);
+      done();
     });
   });
 
-  it('Closes over parameters', () => {
+  it('Closes over parameters', (done) => {
     const script = `var f;
     var foo = fun(param) {
       f = fun() {
@@ -51,10 +52,11 @@ describe('Closures', () => {
 
     dakka.run(script, false, (val) => {
       assert.equal('par', val);
+      done();
     });
   });
 
-  it('Nests', () => {
+  it('Nests', (done) => {
     const script = `var f;
     var f1 = fun() {
       var a = 1;
@@ -73,10 +75,11 @@ describe('Closures', () => {
 
     dakka.run(script, false, (val) => {
       assert.equal(9, val);
+      done();
     });
   });
 
-  it('Shadows closure with local', () => {
+  it('Shadows closure with local', (done) => {
     const script = `var a = 1;
     var f = fun() {
       var b = a;
@@ -87,6 +90,7 @@ describe('Closures', () => {
 
     dakka.run(script, false, (val) => {
       assert.equal(4, val);
+      done();
     });
   });
 });

@@ -47,12 +47,14 @@ class Local {
 }
 
 class Compiler {
-  constructor() {
+  constructor(outer = null) {
+    this.outer = outer;
     this.code = [];
     this.lineMap = [];
     this.constants = new Map();
     this.scope = 0;
     this.locals = [];
+    this.upvalues = [];
   }
 
   getSlot(name) {
@@ -73,13 +75,35 @@ class Compiler {
     this.locals.push(new Local(name));
   }
 
-  getVar(name) {
-    const slot = this.getSlot(name); 
-    return slot === -1 ? null : this.locals[slot];
-  }
-
   markInitialized() {
     this.locals[this.locals.length - 1].scope = this.scope;
+  }
+
+  resolveUpvalue(name) {
+    if (this.outer === null) {
+      return -1;
+    }
+    const local = this.outer.getSlot(name);
+    if (local !== -1) {
+      this.outer.locals[local].isCaptured = true;
+      return this.addUpvalue(local, true);
+    }
+    const upvalue = this.outer.resolveUpvalue(name);
+    if (upvalue != -1) {
+      return this.addUpvalue(upvalue, false);
+    }
+    return -1;
+  }
+
+  addUpvalue(slot, isLocal) {
+    for (let i = 0; i < this.upvalues.length; i++) {
+      const upval = this.upvalues[i];
+      if (upval.isLocal === isLocal && upval.slot === slot) {
+        return i;
+      }
+    }
+    this.upvalues.push({ slot, isLocal });
+    return this.upvalues.length -1;
   }
 
   pushScope() {
@@ -89,12 +113,16 @@ class Compiler {
   popScope() {
     this.scope -= 1;
     for (let i = this.locals.length - 1; i >= 0; i -= 1) {
-      if (this.locals[i].scope <= this.scope) {
+      const local = this.locals[i];
+      if (local.scope <= this.scope) {
         return;
       }
-      // TODO Close captured variables
+      if (local.isCaptured) {
+        emitOp(OP_CODES.CLOSE_UPVALUE);
+      } else {
+        emitOp(OP_CODES.POP);
+      }
       this.locals.pop();
-      emitOp(OP_CODES.POP);
     }
   }
 
@@ -217,7 +245,7 @@ function call() {
 
 function lambda() {
   const oldCompiler = compiler;
-  compiler = new Compiler(current.line);
+  compiler = new Compiler(compiler);
 
   consume(Token.L_PAREN, 'Missing parameter list in lambda expression');
   const params = [];
@@ -249,10 +277,16 @@ function lambda() {
   const newScript = new DakkaFunction(arity, compiler.code,
     [...compiler.constants.keys()], compiler.lineMap, startLine);
 
+  const upvals = compiler.upvalues;
   compiler = oldCompiler;
 
   emitOp(OP_CODES.CLOSURE);
   emitConstantIdx(newScript);
+  emitByte(upvals.length);
+  for (var i = 0; i < upvals.length; i += 1) {
+    emitByte(upvals[i].isLocal ? 1 : 0);
+    emitByte(upvals[i].slot);
+  }
 }
 
 function boolOrNull() {
@@ -301,10 +335,19 @@ function property(canAssign) {
 
 function variable(canAssign) {
   const name = prev.lexeme;
-  const dVar = compiler.getVar(name);
-  const type = dVar ? 'local' : 'global';
+  let type;
+  let upvalue;
+  const local = compiler.getSlot(name);
 
-  if (type === 'local' && dVar.scope === -1) {
+  if (local !== -1) {
+    type = 'local';
+  } else if ((upvalue = compiler.resolveUpvalue(name)) !== -1) {
+    type = 'upvalue';
+  } else {
+    type = 'global';
+  }
+
+  if (type === 'local' && compiler.locals[local].scope === -1) {
     error(prev, `Cannot access variable, ${name}, in its own initializer`);
     return;
   }
@@ -313,11 +356,13 @@ function variable(canAssign) {
       || match(Token.MUL_ASSIGN) || match(Token.DIV_ASSIGN) || match(Token.MOD_ASSIGN))) {
     const assignType = prev.type;
     if (assignType !== Token.ASSIGN) {
-      if (type === 'global') {
+      if (type === 'local') {
+        emitOp(OP_CODES.GET_VAR, local);
+      } else if (type === 'upvalue') {
+        emitOp(OP_CODES.GET_UPVALUE, upvalue);
+      } else {
         emitOp(OP_CODES.GET_GLOBAL);
         emitConstantIdx(name);
-      } else {
-        emitOp(OP_CODES.GET_VAR, compiler.getSlot(name));
       }
     }
     expression();
@@ -328,18 +373,22 @@ function variable(canAssign) {
       case Token.DIV_ASSIGN: emitOp(OP_CODES.DIV); break;
       case Token.MOD_ASSIGN: emitOp(OP_CODES.MOD); break;
     }
-    if (type === 'global') {
+    if (type === 'local') {
+      emitOp(OP_CODES.SET_VAR, local);
+    } else if (type === 'upvalue') {
+      emitOp(OP_CODES.SET_UPVALUE, upvalue);
+    } else {
       emitOp(OP_CODES.SET_GLOBAL);
       emitConstantIdx(name);
-    } else {
-      emitOp(OP_CODES.SET_VAR, compiler.getSlot(name));
     }
   } else {
-    if (type === 'global') {
+    if (type === 'local') {
+      emitOp(OP_CODES.GET_VAR, local);
+    } else if (type === 'upvalue') {
+      emitOp(OP_CODES.GET_UPVALUE, upvalue);
+    } else {
       emitOp(OP_CODES.GET_GLOBAL);
       emitConstantIdx(name);
-    } else {
-      emitOp(OP_CODES.GET_VAR, compiler.getSlot(name));
     }
   }
 }
@@ -594,6 +643,7 @@ function whileStmt() {
 
   emitOp(OP_CODES.JMP_FALSE);
   const end = emitJump();
+  emitOp(OP_CODES.POP);
 
   statement();
 

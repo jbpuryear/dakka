@@ -22,6 +22,8 @@ const opNames = [
   'GET_GLOBAL',
   'SET_VAR',
   'GET_VAR',
+  'SET_UPVALUE',
+  'GET_UPVALUE',
   'SET_PROP',
   'GET_PROP',
   'CLOSURE',
@@ -34,6 +36,7 @@ const opNames = [
   'JMP_FALSE',
   'FOR_TEST',
   'REPEAT',
+  'CLOSE_UPVALUE',
 ];
 
 const OP_CODES = {};

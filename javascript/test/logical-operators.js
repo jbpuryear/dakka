@@ -6,7 +6,7 @@ dakka.debug = true;
 dakka.events.on('errored', (_, msg) => { throw new Error(msg); });
 
 describe('Logical Operators', () => {
-  it('And', () => {
+  it('And', (done) => {
     dakka.run('return false && 1;', false, (val) => {
       assert.equal(false, val);
     });
@@ -28,10 +28,11 @@ describe('Logical Operators', () => {
       return a;`;
     dakka.run(script, false, (val) => {
       assert.equal(true, val);
+      done();
     });
   });
 
-  it('Or', () => {
+  it('Or', (done) => {
     dakka.run('return 1 || false;', false, (val) => {
       assert.equal(1, val);
     });
@@ -50,6 +51,7 @@ describe('Logical Operators', () => {
       return a;`;
     dakka.run(script, false, (val) => {
       assert.equal(false, val);
+      done();
     });
   });
 });

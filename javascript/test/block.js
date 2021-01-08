@@ -6,12 +6,13 @@ dakka.debug = true;
 dakka.events.on('errored', (_, msg) => { throw new Error(msg); });
 
 describe('Blocks', () => {
-  it('Creates new scope', () => {
+  it('Creates new scope', (done) => {
     const script = "{ var a = 'inner'; } return a;";
-    assert.throws(() => { dakka.run(script, false, (val) => { console.log('sssssssssssssss', val); }); });
+    assert.throws(() => { dakka.run(script, false); });
     const script2 = "var a = 'outer'; { var a = 'inner'; } return a;";
     dakka.run(script2, false, (val) => {
       assert.equal('outer', val);
+      done();
     });
   });
 });

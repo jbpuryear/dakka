@@ -6,7 +6,7 @@ dakka.debug = true;
 dakka.events.on('errored', (_, msg) => { throw new Error(msg); });
 
 describe('Bools', () => {
-  it('Compares', () => {
+  it('Compares', (done) => {
     dakka.run('return true == true;', false, (val) => {
       assert.equal(true, val);
     });
@@ -30,10 +30,11 @@ describe('Bools', () => {
     });
     dakka.run('return false != true;', false, (val) => {
       assert.equal(true, val);
+      done();
     });
   });
 
-  it('Does not equal other types', () => {
+  it('Does not equal other types', (done) => {
     dakka.run('return true == "true";', false, (val) => {
       assert.equal(false, val);
     });
@@ -48,10 +49,11 @@ describe('Bools', () => {
     });
     dakka.run('return false == "";', false, (val) => {
       assert.equal(false, val);
+      done();
     });
   })
 
-  it('Negates', () => {
+  it('Negates', (done) => {
     dakka.run('return !true;', false, (val) => {
       assert.equal(false, val);
     });
@@ -60,6 +62,7 @@ describe('Bools', () => {
     });
     dakka.run('return !!true;', false, (val) => {
       assert.equal(true, val);
+      done();
     });
   })
 })
