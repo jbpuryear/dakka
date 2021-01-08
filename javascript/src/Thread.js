@@ -178,8 +178,7 @@ class Thread {
 
         case 16: { // CONST
           const idx = this.advance();
-          const val = constants[idx];
-          stack.push(val);
+          stack.push(constants[idx]);
           break;
         }
 
@@ -188,17 +187,7 @@ class Thread {
           break;
         }
 
-        case 18: { // SCOPE_PUSH
-          this.pushScope();
-          break;
-        }
-
-        case 19: { // SCOPE_POP
-          this.popScope();
-          break;
-        }
-
-        case 20: { // INIT_GLOBAL
+        case 18: { // INIT_GLOBAL
           const name = constants[this.advance()]
           try {
             this.vm.global.makeVar(name, stack.pop());
@@ -208,7 +197,7 @@ class Thread {
           break;
         }
 
-        case 21: { // SET_GLOBAL
+        case 19: { // SET_GLOBAL
           const name = constants[this.advance()]
           try {
             this.vm.global.setVar(name, stack.pop());
@@ -218,7 +207,7 @@ class Thread {
           break;
         }
 
-        case 22: { // GET_GLOBAL
+        case 20: { // GET_GLOBAL
           const name = constants[this.advance()]
           try {
             stack.push(this.vm.global.getVar(name));
@@ -228,34 +217,20 @@ class Thread {
           break;
         }
 
-        case 23: { // INITIALIZE
-          const frame = this.currentFrame;
-          const val = stack.pop();
-          const varName = constants[this.advance()];
-          frame.environment.makeVar(varName, val);
-          break;
-        }
-
-        case 24: { // ASSIGN
-          const frame = this.currentFrame;
-          const varName = constants[this.advance()];
-          const scopeDepth = this.advance();
+        case 21: { // SET_VAR
+          const slot = this.advance();
           // Leave the value on the stack, assignment returns a value.
-          const value = stack[stack.length - 1];
-          frame.environment.setVarAt(scopeDepth, varName, value);
+          stack[slot] = stack[stack.length - 1];
           break;
         }
 
-        case 25: { // GET_VAR
-          const frame = this.currentFrame;
-          const varName = constants[this.advance()];
-          const scopeDepth = this.advance();
-          const val = frame.environment.getVarAt(scopeDepth, varName);
-          stack.push(val);
+        case 22: { // GET_VAR
+          const slot = this.advance();
+          stack.push(stack[slot]);
           break;
         }
 
-        case 26: { // SET_PROP
+        case 23: { // SET_PROP
           const target = this.target;
           if (!target) {
             this.error('Cannot set property, this has no target object');
@@ -270,7 +245,7 @@ class Thread {
           break;
         }
 
-        case 27: { // GET_PROP
+        case 24: { // GET_PROP
           const target = this.target;
           if (!target) {
             this.error('Cannot get property, this has no target object');
@@ -285,14 +260,13 @@ class Thread {
           break;
         }
 
-        case 28: { // CLOSURE
-          const idx = this.advance();
-          const fun = constants[idx];
+        case 25: { // CLOSURE
+          const fun = constants[this.advance()];
           stack.push(new Closure(fun, this.currentFrame.environment));
           break;
         }
 
-        case 29: { // CALL
+        case 26: { // CALL
           const argCount = this.advance();
           const script = stack[stack.length - 1 - argCount];
 
@@ -326,12 +300,11 @@ class Thread {
             }
             this.pushFrame(script);
             constants = this.currentFrame.constants;
-            this.pushScope();
           }
           break;
         }
 
-        case 30: { // RETURN
+        case 27: { // RETURN
           if (this.callStack.length === 1) {
             this.events.emit('returned', this.stack.pop());
             this.terminated = true;
@@ -347,7 +320,7 @@ class Thread {
           break;
         }
 
-        case 31: { // SPAWN
+        case 28: { // SPAWN
           const argCount = this.advance();
           const propCount = this.advance();
           const target = this.vm._spawn();
@@ -374,7 +347,7 @@ class Thread {
           break;
         }
 
-        case 32: { // THREAD
+        case 29: { // THREAD
           const argCount = this.advance();
           let args = null;
           if (argCount > 0) {
@@ -389,7 +362,7 @@ class Thread {
           break;
         }
 
-        case 33: { // SLEEP
+        case 30: { // SLEEP
           const time = stack.pop();
           if (!isNumber(this, time)) {
             return;
@@ -398,12 +371,12 @@ class Thread {
           break;
         }
 
-        case 34: { // JMP
+        case 31: { // JMP
           this.pc = this.advance();
           break;
         }
 
-        case 35: { // JMP_FALSE
+        case 32: { // JMP_FALSE
           const addr = this.advance();
           if(!stack[stack.length - 1]) {
             this.pc = addr;
@@ -411,7 +384,7 @@ class Thread {
           break;
         }
 
-        case 36: { // FOR_TEST
+        case 33: { // FOR_TEST
           const l = stack.length;
           const initVal = stack[l - 3];
           const max = stack[l - 2];
@@ -428,7 +401,7 @@ class Thread {
           break;
         }
 
-        case 37: { // REPEAT
+        case 34: { // REPEAT
           const counter = stack[stack.length - 1];
           if (typeof counter === 'number') {
             if (counter > 0) {
@@ -459,16 +432,6 @@ class Thread {
     const frame = this.callStack.pop();
     this.pc = frame.returnAddress;
     this.currentFrame = this.callStack[this.callStack.length - 1];
-  }
-
-  pushScope() {
-    const frame = this.currentFrame;
-    frame.environment = frame.environment.makeInner();
-  }
-
-  popScope() {
-    const frame = this.currentFrame;
-    frame.environment = frame.environment.outer;
   }
 
   advance() {

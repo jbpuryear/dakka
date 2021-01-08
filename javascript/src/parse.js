@@ -1,5 +1,4 @@
 import DakkaFunction from './DakkaFunction.js';
-import Environment from './Environment.js';
 import Token from './Token.js';
 import OP_CODES from './OP_CODES.js';
 import PREC from './PRECEDENCE.js';
@@ -31,16 +30,84 @@ const rules = new Map([
   [Token.QUESTION, { prefix: null, infix: ternary, precedence: PREC.TERNARY }],
 ]);
 
-let code;
-let lineMap;
-let constants;
-let environment;
+let compiler;
 let tokens;
 let current;
 let prev;
 let idx;
 let hadError;
 let panicMode;
+
+class Local {
+  constructor(name) {
+    this.name = name;
+    this.scope = -1;
+    this.isCaptured = false;
+  }
+}
+
+class Compiler {
+  constructor() {
+    this.code = [];
+    this.lineMap = [];
+    this.constants = new Map();
+    this.scope = 0;
+    this.locals = [];
+  }
+
+  getSlot(name) {
+    for (let i = this.locals.length - 1; i >= 0; i -= 1) {
+      if (this.locals[i].name === name) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  makeVar(name) {
+    const existingLocalSlot = this.getSlot(name);
+    if (existingLocalSlot !== -1 && this.locals[existingLocalSlot].scope === this.scope) {
+      error(`Variable, ${v} is already defined in target scope`);
+      return;
+    }
+    this.locals.push(new Local(name));
+  }
+
+  getVar(name) {
+    const slot = this.getSlot(name); 
+    return slot === -1 ? null : this.locals[slot];
+  }
+
+  markInitialized() {
+    this.locals[this.locals.length - 1].scope = this.scope;
+  }
+
+  pushScope() {
+    this.scope += 1;
+  }
+
+  popScope() {
+    this.scope -= 1;
+    for (let i = this.locals.length - 1; i >= 0; i -= 1) {
+      if (this.locals[i].scope <= this.scope) {
+        return;
+      }
+      // TODO Close captured variables
+      this.locals.pop();
+      emitOp(OP_CODES.POP);
+    }
+  }
+
+  // We need this becase some instructions, like for loops, leave values on the stack, and
+  // that displaces our variables.
+  pushDummyVar() {
+    this.locals.push(new Local(null));
+  }
+
+  popDummyVar() {
+    this.locals.pop();
+  }
+}
 
 function getRule(type) {
   return rules.has(type) ? rules.get(type) : { prefix: null, infix: null, precedence: PREC.NONE };
@@ -67,7 +134,6 @@ function synchronize() {
       case Token.RETURN:
       case Token.SLEEP:
         return;
-
       default:
         advance();
     }
@@ -78,7 +144,7 @@ function advance() {
   prev = current;
   current = tokens[idx];
   if (prev && (current.line !== prev.line)) {
-    lineMap.push(code.length);
+    compiler.lineMap.push(compiler.code.length);
   }
   idx += 1;
 }
@@ -92,24 +158,29 @@ function match(type) {
 }
 
 function consume(type, err) {
-  if (match(type)) {
-
-  } else {
+  if (!match(type)) {
     error(current, err);
   }
 }
 
-function emitOp(op, line) {
-  code.push(op);
+function emitOp(op, param) {
+  compiler.code.push(op);
+  if (param !== undefined) {
+    compiler.code.push(param);
+  }
+}
+
+function emitByte(b) {
+  compiler.code.push(b);
 }
 
 function emitConstantIdx(cnst) {
-  const exists = constants.has(cnst);
-  const index = exists ? constants.get(cnst) : constants.size;
+  const exists = compiler.constants.has(cnst);
+  const index = exists ? compiler.constants.get(cnst) : compiler.constants.size;
   if (!exists) {
-    constants.set(cnst, index);
+    compiler.constants.set(cnst, index);
   }
-  code.push(index);
+  compiler.code.push(index);
 }
 
 function emitConstant(cnst) {
@@ -117,27 +188,13 @@ function emitConstant(cnst) {
   emitConstantIdx(cnst);
 }
 
-function emitGetVar(name, scopeDepth) {
-  emitOp(OP_CODES.GET_VAR);
-  emitConstantIdx(name);
-  code.push(scopeDepth);
-}
-
 function emitJump() {
-  code.push(0);
-  return code.length - 1;
+  compiler.code.push(0);
+  return compiler.code.length - 1;
 }
 
 function patchJump(idx) {
-  code[idx] = code.length;
-}
-
-function pushEnvironment() {
-  environment = environment.makeInner();
-}
-
-function popEnvironment() {
-  environment = environment.outer;
+  compiler.code[idx] = compiler.code.length;
 }
 
 function argumentList() {
@@ -155,19 +212,12 @@ function argumentList() {
 
 function call() {
   const argCount = argumentList();
-  emitOp(OP_CODES.CALL);
-  code.push(argCount);
+  emitOp(OP_CODES.CALL, argCount);
 }
 
 function lambda() {
-  const oldCode = code;
-  code = [];
-  const oldLineMap = lineMap;
-  lineMap = [];
-  const oldConstants = constants;
-  constants = new Map();
-  environment = environment.makeInner();
-  const startLine = current.line;
+  const oldCompiler = compiler;
+  compiler = new Compiler(current.line);
 
   consume(Token.L_PAREN, 'Missing parameter list in lambda expression');
   const params = [];
@@ -179,16 +229,15 @@ function lambda() {
   }
   const arity = params.length;
 
-  let name;
-  while (name = params.pop()) {
-    emitOp(OP_CODES.INITIALIZE);
-    emitConstantIdx(name);
-    environment.makeVar(name, true);
+  while (params.length > 0) {
+    compiler.makeVar(params.pop());
+    compiler.markInitialized();
   }
-
   consume(Token.R_PAREN, 'Missing closing parenthesis after parameter list');
 
   consume('L_BRACE', 'Missing function body');
+  const startLine = current.line;
+
   while (current.type !== Token.R_BRACE && current.type !== Token.EOF) {
     declaration();
   }
@@ -197,15 +246,13 @@ function lambda() {
   emitOp(OP_CODES.NULL);
   emitOp(OP_CODES.RETURN);
 
-  const newScript = new DakkaFunction(arity, code, [...constants.keys()], lineMap, startLine);
-  code = oldCode;
-  lineMap = oldLineMap;
-  constants = oldConstants;
-  environment = environment.outer;
-  const index = constants.size;
-  constants.set(newScript, index);
+  const newScript = new DakkaFunction(arity, compiler.code,
+    [...compiler.constants.keys()], compiler.lineMap, startLine);
+
+  compiler = oldCompiler;
+
   emitOp(OP_CODES.CLOSURE);
-  code.push(index);
+  emitConstantIdx(newScript);
 }
 
 function boolOrNull() {
@@ -254,10 +301,10 @@ function property(canAssign) {
 
 function variable(canAssign) {
   const name = prev.lexeme;
-  const scopeDepth = environment.getVarDepth(name);
-  const type = scopeDepth === -1 ? 'global' : 'local';
+  const dVar = compiler.getVar(name);
+  const type = dVar ? 'local' : 'global';
 
-  if (type === 'local' && environment.getVarAt(scopeDepth, name) === false) {
+  if (type === 'local' && dVar.scope === -1) {
     error(prev, `Cannot access variable, ${name}, in its own initializer`);
     return;
   }
@@ -270,7 +317,7 @@ function variable(canAssign) {
         emitOp(OP_CODES.GET_GLOBAL);
         emitConstantIdx(name);
       } else {
-        emitGetVar(name, scopeDepth);
+        emitOp(OP_CODES.GET_VAR, compiler.getSlot(name));
       }
     }
     expression();
@@ -285,16 +332,14 @@ function variable(canAssign) {
       emitOp(OP_CODES.SET_GLOBAL);
       emitConstantIdx(name);
     } else {
-      emitOp(OP_CODES.ASSIGN);
-      emitConstantIdx(name);
-      code.push(scopeDepth);
+      emitOp(OP_CODES.SET_VAR, compiler.getSlot(name));
     }
   } else {
     if (type === 'global') {
       emitOp(OP_CODES.GET_GLOBAL);
       emitConstantIdx(name);
     } else {
-      emitGetVar(name, scopeDepth);
+      emitOp(OP_CODES.GET_VAR, compiler.getSlot(name));
     }
   }
 }
@@ -431,8 +476,7 @@ function threadStmt() {
   if (argCount === -1) {
     error('Missing function in spawn statement');
   }
-  emitOp(OP_CODES.THREAD);
-  code.push(argCount);
+  emitOp(OP_CODES.THREAD, argCount);
 }
 
 function spawnStmt() {
@@ -459,7 +503,8 @@ function spawnStmt() {
   }
 
   emitOp(OP_CODES.SPAWN);
-  code.push(argCount, propNames.length);
+  emitByte(argCount)
+  emitByte(propNames.length);
   for (let i = propNames.length - 1; i >= 0; i -= 1) {
     emitConstantIdx(propNames[i]);
   }
@@ -473,9 +518,10 @@ function sleepStmt() {
 function repeatStmt() {
   consume(Token.L_PAREN, "Expect '(' after repeat");
   expression();
+  compiler.pushDummyVar();
   consume(Token.R_PAREN, "Expect ')' after repeat argument");
 
-  const loopStart = code.length;
+  const loopStart = compiler.code.length;
   emitOp(OP_CODES.REPEAT);
 
   emitOp(OP_CODES.JMP_FALSE);
@@ -484,11 +530,11 @@ function repeatStmt() {
 
   statement();
 
-  emitOp(OP_CODES.JMP);
-  code.push(loopStart);
+  emitOp(OP_CODES.JMP, loopStart);
 
   patchJump(jumpPatch);
   emitOp(OP_CODES.POP);
+  compiler.popDummyVar();
 }
 
 function forStmt() {
@@ -505,9 +551,15 @@ function forStmt() {
   } else {
     emitConstant(1);
   }
+  // The initial value, max, and increment statements remain on the stack while the
+  // loop body executes, so we push some dummy vars to keep the vars on the stack aligned.
+  compiler.pushDummyVar();
+  compiler.pushDummyVar();
+  compiler.pushDummyVar();
+
   consume(Token.R_PAREN, "Expect ')' after for loop arguments");
 
-  const testIdx = code.length;
+  const testIdx = compiler.code.length;
   // FOR_TEST is super weird. It pushes the loop variable initializer value
   // onto the stack, then the result of the test.
   emitOp(OP_CODES.FOR_TEST);
@@ -516,25 +568,17 @@ function forStmt() {
   // Here we pop the test result from FOR_TEST
   emitOp(OP_CODES.POP);
 
-  pushEnvironment();
-  emitOp(OP_CODES.SCOPE_PUSH);
-
-  // Push loop var name to stack then initialize in the new scope that
-  // we create for each iteration. This finally pops the value pushed
-  // by FOR_TEST.
-  environment.makeVar(loopVarName, true);
-  emitOp(OP_CODES.INITIALIZE);
-  emitConstantIdx(loopVarName);
+  compiler.pushScope();
+  // The FOR_TEST instruction leaves a value here on the stack, so it becomes our loop variable.
+  compiler.makeVar(loopVarName);
+  compiler.markInitialized();
 
   // Compile the loop body
   statement();
 
-  popEnvironment();
-  emitOp(OP_CODES.SCOPE_POP);
+  compiler.popScope();
 
-  emitOp(OP_CODES.JMP);
-  code.push(testIdx);
-
+  emitOp(OP_CODES.JMP, testIdx);
   patchJump(testJump)
 
   // Pop the FOR_TEST result and for loop var initializer, as well as
@@ -543,7 +587,7 @@ function forStmt() {
 }
 
 function whileStmt() {
-  const repeat = code.length;
+  const repeat = compiler.code.length;
   consume(Token.L_PAREN, "Expect '(' after while");
   expression();
   consume(Token.R_PAREN, "Expect ')' after condition");
@@ -553,8 +597,7 @@ function whileStmt() {
 
   statement();
 
-  emitOp(OP_CODES.JMP);
-  code.push(repeat);
+  emitOp(OP_CODES.JMP, repeat);
   patchJump(end);
 }
 
@@ -584,21 +627,18 @@ function ifStmt() {
 function functionStmt() {
   consume(Token.IDENTIFIER, 'Expected function name in declaration');
   const name = prev.lexeme;
-  environment.makeVar(name, true);
+  compiler.makeVar(name);
+  compiler.markInitialized();
   lambda();
-  emitOp(OP_CODES.INITIALIZE);
-  emitConstantIdx(name);
 }
 
 function block() {
-  pushEnvironment();
-  emitOp(OP_CODES.SCOPE_PUSH);
+  compiler.pushScope();
   while (current.type !== Token.R_BRACE && current.type !== Token.EOF) {
     declaration();
   }
   consume(Token.R_BRACE, 'Unmatched block deliminator');
-  popEnvironment();
-  emitOp(OP_CODES.SCOPE_POP);
+  compiler.popScope();
 }
 
 function statement() {
@@ -641,22 +681,22 @@ function statement() {
 function declaration() {
   if (match(Token.VAR) || match(Token.GLOBAL)) {
     const type = prev.type;
-    consume(Token.IDENTIFIER, `Missing identifier in ${type} variable declaration`);
+    consume(Token.IDENTIFIER, `Missing identifier in variable declaration`);
     const name = prev.lexeme;
     if (type === Token.VAR) {
-      environment.makeVar(name, false);
+      compiler.makeVar(name);
     }
     if (match(Token.ASSIGN)) {
       // this lets functions call themselves
-      if (current.type === Token.FUN && type === 'local') { environment.setVarAt(0, name, true); }
+      if (current.type === Token.FUN && type === Token.VAR) {
+        compiler.markInitialized();
+      }
       expression();
     } else {
       emitOp(OP_CODES.NULL);
     }
     if (type === Token.VAR) {
-      emitOp(OP_CODES.INITIALIZE);
-      emitConstantIdx(name);
-      environment.setVarAt(0, name, true);
+      compiler.markInitialized();
     } else {
       emitOp(OP_CODES.INIT_GLOBAL);
       emitConstantIdx(name);
@@ -670,11 +710,8 @@ function declaration() {
   }
 }
 
-function parse(tkns, env = new Environment()) {
-  code = [];
-  lineMap = [];
-  constants = new Map();
-  environment = env;
+function parse(tkns) {
+  compiler = new Compiler;
   tokens = tkns;
   current = null;
   prev = null;
@@ -693,7 +730,7 @@ function parse(tkns, env = new Environment()) {
   if (hadError) {
     throw new Error('DAKKA_SYNTAX_ERROR');
   }
-  return  new DakkaFunction(0, code, [...constants.keys()], lineMap, 1);
+  return  new DakkaFunction(0, compiler.code, [...compiler.constants.keys()], compiler.lineMap, 1);
 }
 
 export default parse;

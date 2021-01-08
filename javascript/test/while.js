@@ -34,7 +34,7 @@ describe('While Statements', () => {
       };
 
       var h = f();
-      return h(); // expect: i`;
+      return h();`;
     dakka.run(script, false, (val) => {
       assert.equal('i', val);
     });

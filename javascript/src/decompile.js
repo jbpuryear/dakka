@@ -14,6 +14,8 @@ export default function(func) {
     const op = code[i];
     const name = getOpName(op);
     switch (op) {
+      case OP_CODES.SET_VAR:
+      case OP_CODES.GET_VAR:
       case OP_CODES.JMP:
       case OP_CODES.JMP_FALSE: {
         i += 1;
@@ -23,10 +25,7 @@ export default function(func) {
 
       case OP_CODES.CONST:
       case OP_CODES.CLOSURE:
-      case OP_CODES.INITIALIZE:
       case OP_CODES.INIT_GLOBAL:
-      case OP_CODES.ASSIGN:
-      case OP_CODES.GET_VAR:
       case OP_CODES.SET_GLOBAL:
       case OP_CODES.GET_GLOBAL:
       case OP_CODES.SET_PROP:
