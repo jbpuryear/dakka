@@ -1,28 +1,11 @@
 import EventEmitter from 'eventemitter3';
-import DefaultEnvironment from './DefaultEnvironment.js';
+import Environment from './Environment.js';
 import Thread from './Thread.js';
 import Closure from './Closure.js';
 import List from './List.js';
 import scan from './scan.js';
 import parse from './parse.js';
 import decompile from './decompile.js';
-
-function onThreadErrored(thread, msg) {
-  this._threads.remove(this._threads, thread);
-  if (this.debug) {
-    console.error(msg);
-  }
-  this.events.emit('errored', thread.target, msg);
-}
-
-function onThreadSpawnErrored(thread, spawnTarget, msg) {
-  this._threads.remove(thread);
-  if (this.debug) {
-    console.error(msg);
-  }
-  this.events.emit('errored', thread.target, msg);
-  this.events.emit('errored', spawnTarget, msg);
-}
 
 function defaultFactory() {
   return {};
@@ -38,7 +21,7 @@ class Dakka {
     this.factory = factory;
     this.debug = false;
     this.events = new EventEmitter();
-    this.global = new DefaultEnvironment();
+    this.global = new Environment();
     this._threads = new List();
     this._targetMap = new Map();
   }
@@ -71,7 +54,7 @@ class Dakka {
     } else {
       compiled = script;
     }
-    const close = new Closure(compiled, this.global.makeInner())
+    const close = new Closure(compiled)
     this._startThread(close, null, target, callback);
     return spawn;
   }
@@ -82,7 +65,7 @@ class Dakka {
       case 'number':
       case 'string':
       case 'function':
-        this.global.makeVar(name, val);
+        this.global.set(name, val);
         return true;
       default:
         this.events.emit('error', null, `Can't add native, invalid type '${type}'`);
@@ -95,9 +78,6 @@ class Dakka {
     while (t) {
       const { next } = t;
       t.update(dt);
-      if (t.terminated) {
-        this._threads.remove(t);
-      }
       t = next;
     }
   }
@@ -126,15 +106,25 @@ class Dakka {
 
   _startThread(script, args, target, callback) {
     const thread = new Thread(this);
-    thread.events.on('errored', onThreadErrored, this);
-    thread.events.on('spawn_errored', onThreadSpawnErrored, this);
+    this._threads.shift(thread);
+    if (target) {
+      this._targetMap.set(target, thread);
+    }
     thread.run(script, args, target, callback);
-    if (!thread.terminated) {
-      this._threads.shift(thread);
-      if (target) {
-        this._targetMap.set(target, thread);
-      }
-    } 
+  }
+
+  _kill(thread) {
+    this._threads.remove(thread);
+    if (thread.target) {
+      this._targetMap.delete(thread.target);
+    }
+  }
+
+  _error(target, msg) {
+    if (this.debug) {
+      console.error(msg);
+    }
+    this.events.emit('errored', target, msg);
   }
 }
 

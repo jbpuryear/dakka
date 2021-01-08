@@ -1,4 +1,3 @@
-import EventEmitter from 'eventemitter3';
 import StackFrame from './StackFrame.js';
 import Closure from './Closure.js';
 import Upvalue from './Upvalue.js';
@@ -17,18 +16,11 @@ function areNumbers(thread, a, b) {
 }
 
 
-// Events
-//   returned - Emitted when the thread finishes executing. Callbacks are passed
-//              the value of the scripts return statement or null if no return statement.
-//   Errored  - Emitted when thread has a runtime error. Callbacks are passed the thread
-//              instance and error message. Used by the vm to report the error and terminate
-//              the thread.
 class Thread {
   constructor(vm) {
     this.vm = vm;
+    this.callback = null;
     this.target = null;
-    this.events = new EventEmitter();
-    this.terminated = false;
     this.sleep = 0;
     this.stack = null;
     this.callStack = null;
@@ -39,20 +31,16 @@ class Thread {
   }
 
   run(script, args = [], target, callback = null) {
-    // Args are in reverse order and become the stack for that thread.
+    // TODO Script arguments
+    this.callback = callback;
     if (script.func.code.length === 0) {
-      this.events.emit('returned', null);
-      this.terminated = true;
+      this.dReturn(null);
       return;
-    }
-    if (callback) {
-      this.events.once('returned', callback);
     }
     this.sleep = 0;
     this.stack = Array.isArray(args) ? args : [];
     this.callStack = [];
     this.pushFrame(new StackFrame(script));
-    this.terminated = false;
     this.target = target;
     this.update(0);
   }
@@ -65,9 +53,10 @@ class Thread {
 
     const stack = this.stack;
     let constants = this.frame.constants;
-    while (this.sleep <= 0 && !this.terminated) {
-      // I know it sucks to use a giant switch with magic numbers, but it's significantly faster
-      switch (this.advance()) {
+    let op;
+    while (this.sleep <= 0 && (op = this.advance()) !== undefined) {
+      // I know it sucks to use a giant switch like this, but it's significantly faster
+      switch (op) {
         case 0: { // TRUE
           stack.push(true);
           break;
@@ -151,6 +140,7 @@ class Thread {
           if (areNumbers(this, a, b)) {
             if (b === 0) {
               this.error('Divide by zero');
+              return;
             } else {
               stack.push(a / b);
             }
@@ -189,29 +179,33 @@ class Thread {
         case 18: { // INIT_GLOBAL
           const name = constants[this.advance()]
           try {
-            this.vm.global.makeVar(name, stack.pop());
+            this.vm.global.set(name, stack.pop());
           } catch (e) {
             this.error(`Can't initialize global, '${name}', already exists`);
+            return;
           }
           break;
         }
 
         case 19: { // SET_GLOBAL
           const name = constants[this.advance()]
-          try {
-            this.vm.global.setVar(name, stack[stack.length - 1]);
-          } catch (e) {
+          if (this.vm.global.has(name)) {
+            this.vm.global.set(name, stack[stack.length - 1]);
+          } else {
             this.error(`Can't assign to undeclared variable, '${name}'`);
+            return;
           }
           break;
         }
 
         case 20: { // GET_GLOBAL
           const name = constants[this.advance()]
-          try {
-            stack.push(this.vm.global.getVar(name));
-          } catch (e) {
+          const val = this.vm.global.get(name);
+          if (val !== undefined) {
+            stack.push(val);
+          } else {
             this.error(`Can't access undeclared variable, '${name}'`);
+            return;
           }
           break;
         }
@@ -310,11 +304,13 @@ class Thread {
                 break;
               default:
                 this.error(`Invalid return type from native function, ${script.toString()}`);
+                return;
             }
             stack.push(ret);
           } else {
             if (!(script instanceof Closure)) {
               this.error('Cannot call non-function primitive');
+              return;
             }
             if (argCount !== script.func.arity) {
               this.error('Wrong number of arguments');
@@ -329,8 +325,8 @@ class Thread {
 
         case 29: { // RETURN
           if (this.callStack.length === 1) {
-            this.events.emit('returned', this.stack.pop());
-            this.terminated = true;
+            this.dReturn(this.stack.pop());
+            return;
           } else {
             const returnValue = stack.pop();
             // This also pops all the functions arguments.
@@ -356,8 +352,9 @@ class Thread {
             if (name in target) {
               target[name] = val;
             } else {
-              this.events.emit('spawn_errored', this, target,
+              this.vm.events.emit('errored', target,
                 'Cannot assign undefined property of spawned target object');
+              this.error('Failed to spawn child thread');
               return;
             }
           }
@@ -385,6 +382,7 @@ class Thread {
         case 32: { // SLEEP
           const time = stack.pop();
           if (!isNumber(this, time)) {
+            this.error('Invalid sleep expression');
             return;
           }
           this.sleep = time;
@@ -411,9 +409,11 @@ class Thread {
           const increment = stack[l - 1];
           if (typeof initVal !== 'number' || typeof max !== 'number' || typeof increment !== 'number') {
             this.error('Invalid expression in for loop initializer');
+            return;
           }
           if (increment === 0) {
             this.error('For loop increment cannot be 0');
+            return;
           }
           stack[l - 3] += increment;
           stack.push(initVal);
@@ -432,6 +432,7 @@ class Thread {
             }
           } else {
             this.error(`Expected numerical expression in repeat statement, found ${counter}`);
+            return;
           }
           break;
         }
@@ -499,10 +500,17 @@ class Thread {
     return op;
   }
 
+  dReturn(val) {
+    if (typeof this.callback === 'function') {
+      this.callback(val);
+    }
+    this.vm._kill(this);
+  }
+
   error(msg) {
-    this.terminated = true;
+    this.vm._kill(this);
     const line = this.frame.script.func.getLine(this.frame.pc - 1);
-    this.events.emit('errored', this, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
+    this.vm._error(this.target, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
   }
 }
 
