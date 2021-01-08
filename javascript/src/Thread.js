@@ -428,7 +428,6 @@ class Thread {
               stack[stack.length - 1] -= 1;
               stack.push(true);
             } else {
-              stack.pop();
               stack.push(false);
             }
           } else {

@@ -69,7 +69,7 @@ class Compiler {
   makeVar(name) {
     const existingLocalSlot = this.getSlot(name);
     if (existingLocalSlot !== -1 && this.locals[existingLocalSlot].scope === this.scope) {
-      error(`Variable, ${v} is already defined in target scope`);
+      error(`Variable, ${name} is already defined in target scope`);
       return;
     }
     this.locals.push(new Local(name));
@@ -248,18 +248,14 @@ function lambda() {
   compiler = new Compiler(compiler);
 
   consume(Token.L_PAREN, 'Missing parameter list in lambda expression');
-  const params = [];
+  let arity = 0;
   if (current.type !== Token.R_PAREN) {
     do {
       consume(Token.IDENTIFIER, `Invalid parameter name, ${current.lexeme}`);
-      params.push(prev.lexeme);
+      compiler.makeVar(prev.lexeme);
+      compiler.markInitialized();
+      arity += 1;
     } while (match(Token.COMMA));
-  }
-  const arity = params.length;
-
-  while (params.length > 0) {
-    compiler.makeVar(params.pop());
-    compiler.markInitialized();
   }
   consume(Token.R_PAREN, 'Missing closing parenthesis after parameter list');
 
@@ -567,7 +563,6 @@ function sleepStmt() {
 function repeatStmt() {
   consume(Token.L_PAREN, "Expect '(' after repeat");
   expression();
-  compiler.pushDummyVar();
   consume(Token.R_PAREN, "Expect ')' after repeat argument");
 
   const loopStart = compiler.code.length;
@@ -577,13 +572,16 @@ function repeatStmt() {
   const jumpPatch = emitJump();
   emitOp(OP_CODES.POP);
 
+  compiler.pushDummyVar();
   statement();
+  compiler.popDummyVar();
 
   emitOp(OP_CODES.JMP, loopStart);
 
   patchJump(jumpPatch);
+  // Pop the test expression and counter
   emitOp(OP_CODES.POP);
-  compiler.popDummyVar();
+  emitOp(OP_CODES.POP);
 }
 
 function forStmt() {
@@ -626,6 +624,9 @@ function forStmt() {
   statement();
 
   compiler.popScope();
+  compiler.popDummyVar();
+  compiler.popDummyVar();
+  compiler.popDummyVar();
 
   emitOp(OP_CODES.JMP, testIdx);
   patchJump(testJump)
@@ -649,6 +650,7 @@ function whileStmt() {
 
   emitOp(OP_CODES.JMP, repeat);
   patchJump(end);
+  emitOp(OP_CODES.POP);
 }
 
 function ifStmt() {

@@ -26,6 +26,28 @@ describe('Repeat Statment', () => {
     });
   });
 
+  it('Returns closure from loop', (done) => {
+    const script = `var f = fun() {
+        var n = 0;
+        repeat (10) {
+          n += 1;
+          repeat (2) {
+            var i = n;
+            if (i == 8) {
+              return fun() { return n; };
+            }
+          }
+        }
+      };
+
+      var h = f();
+      return h();`;
+    dakka.run(script, false, (val) => {
+      assert.equal(8, val);
+      done();
+    });
+  });
+
   it('Throws if no intializer', () => {
     assert.throws(() => { dakka.run('repeat () { }') });
   });

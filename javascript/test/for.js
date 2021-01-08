@@ -41,6 +41,24 @@ describe('For Statment', () => {
     });
   });
 
+  it('Returns closure from loop', (done) => {
+    const script = `var f = fun() {
+        for (var n = 0, 10) {
+          var m = n;
+          if (m == 8) {
+            return fun() { return m; };
+          }
+        }
+      };
+
+      var h = f();
+      return h();`;
+    dakka.run(script, false, (val) => {
+      assert.equal(8, val);
+      done();
+    });
+  });
+
   it('Throws if no loop var', () => {
     assert.throws(() => { dakka.run('for (1, 10) { }') });
   });
