@@ -30,10 +30,9 @@ class Thread {
     this.events = new EventEmitter();
     this.terminated = false;
     this.sleep = 0;
-    this.pc = 0;
     this.stack = null;
     this.callStack = null;
-    this.currentFrame = null;
+    this.frame = null;
     this.prev = null;
     this.next = null;
   }
@@ -49,10 +48,9 @@ class Thread {
       this.events.once('returned', callback);
     }
     this.sleep = 0;
-    this.pc = 0;
     this.stack = Array.isArray(args) ? args : [];
     this.callStack = [];
-    this.pushFrame(script, env);
+    this.pushFrame(new StackFrame(script, env));
     this.terminated = false;
     this.target = target;
     this.update(0);
@@ -65,7 +63,7 @@ class Thread {
     }
 
     const stack = this.stack;
-    let constants = this.currentFrame.constants;
+    let constants = this.frame.constants;
     while (this.sleep <= 0 && !this.terminated) {
       // I know it sucks to use a giant switch with magic numbers, but it's significantly faster
       switch (this.advance()) {
@@ -220,13 +218,13 @@ class Thread {
         case 21: { // SET_VAR
           const slot = this.advance();
           // Leave the value on the stack, assignment returns a value.
-          stack[slot] = stack[stack.length - 1];
+          stack[this.frame.slots + slot] = stack[stack.length - 1];
           break;
         }
 
         case 22: { // GET_VAR
           const slot = this.advance();
-          stack.push(stack[slot]);
+          stack.push(stack[this.frame.slots + slot]);
           break;
         }
 
@@ -262,7 +260,7 @@ class Thread {
 
         case 25: { // CLOSURE
           const fun = constants[this.advance()];
-          stack.push(new Closure(fun, this.currentFrame.environment));
+          stack.push(new Closure(fun, this.frame.environment));
           break;
         }
 
@@ -298,8 +296,9 @@ class Thread {
               this.error('Wrong number of arguments');
               return;
             }
-            this.pushFrame(script);
-            constants = this.currentFrame.constants;
+            const slots = this.stack.length - argCount;
+            this.pushFrame(new StackFrame(script, script.environment, slots));
+            constants = this.frame.constants;
           }
           break;
         }
@@ -309,11 +308,12 @@ class Thread {
             this.events.emit('returned', this.stack.pop());
             this.terminated = true;
           } else {
+            const returnValue = stack.pop();
+            // This also pops all the functions arguments.
             this.popFrame();
-            constants = this.currentFrame.constants;
+            constants = this.frame.constants;
             // The called function is still sitting on here on the stack, so
             // we pop it and restore the return value.
-            const returnValue = stack.pop();
             stack.pop();
             stack.push(returnValue);
           }
@@ -372,14 +372,14 @@ class Thread {
         }
 
         case 31: { // JMP
-          this.pc = this.advance();
+          this.frame.pc = this.advance();
           break;
         }
 
         case 32: { // JMP_FALSE
           const addr = this.advance();
           if(!stack[stack.length - 1]) {
-            this.pc = addr;
+            this.frame.pc = addr;
           }
           break;
         }
@@ -420,33 +420,30 @@ class Thread {
     }
   }
 
-  pushFrame(script, env) {
-    const environment = env || script.environment;
-    const frame = new StackFrame(script, environment, this.pc);
+  pushFrame(frame) {
     this.callStack.push(frame);
-    this.currentFrame = frame;
-    this.pc = 0;
+    this.frame = frame;
   }
 
   popFrame() {
     const frame = this.callStack.pop();
-    this.pc = frame.returnAddress;
-    this.currentFrame = this.callStack[this.callStack.length - 1];
+    this.stack.length = frame.slots;
+    this.frame = this.callStack[this.callStack.length - 1];
   }
 
   advance() {
-    if (this.pc >= this.currentFrame.code.length) {
+    if (this.frame.pc >= this.frame.code.length) {
       this.error('SegFault, end of code reached');
       return;
     }
-    const op = this.currentFrame.code[this.pc];
-    this.pc += 1;
+    const op = this.frame.code[this.frame.pc];
+    this.frame.pc += 1;
     return op;
   }
 
   error(msg) {
     this.terminated = true;
-    const line = this.currentFrame.script.func.getLine(this.pc - 1);
+    const line = this.frame.script.func.getLine(this.frame.pc - 1);
     this.events.emit('errored', this, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
   }
 }

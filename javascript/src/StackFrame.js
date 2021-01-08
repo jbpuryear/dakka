@@ -1,10 +1,11 @@
 class StackFrame {
-  constructor(script, environment, pc) {
+  constructor(script, environment, slots = 0) {
     this.script = script;
+    this.environment = environment;
+    this.slots = slots;
     this.code = script.func.code;
     this.constants = script.func.constants;
-    this.environment = environment;
-    this.returnAddress = pc;
+    this.pc = 0;
   }
 }
 

@@ -22,6 +22,20 @@ describe('Function calls', () => {
     });
   });
 
+  it('Works for nested functions', (done) => {
+    const script = `fun f() {
+        fun g() {
+          return 1;
+        }
+        return g();
+      };
+      return f();`;
+    dakka.run(script, false, (val) => {
+      assert.equal(1, val);
+      done();
+    });
+  });
+
   it('Fails to call non function primitives', () => {
     assert.throws(() => { dakka.run('var a = 1; a();') });
     assert.throws(() => { dakka.run('var a = ""; a();') });
