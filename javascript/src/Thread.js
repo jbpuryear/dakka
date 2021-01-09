@@ -246,7 +246,7 @@ class Thread {
             this.error('Cannot set undefined property on target object');
             return;
           }
-          this.target[name] = stack.pop();
+          this.target[name] = stack[stack.length - 1];
           break;
         }
 
@@ -257,11 +257,22 @@ class Thread {
             return;
           }
           const name = constants[this.advance()];
-          if (!(name in target)) {
-            this.error('Cannot get undefined property on target object');
-            return;
+          const val = target[name];
+          switch (typeof val) {
+            case 'undefined':
+              this.error('Cannot get undefined property on target object');
+              return;
+            case 'number':
+            case 'function':
+            case 'string':
+              break;
+            default:
+              if (!(val instanceof Closure)) {
+                this.error(`Target property, ${name}, is not a valid Dakka type`);
+                return
+              }
           }
-          stack.push(this.target[name]);
+          stack.push(val);
           break;
         }
 

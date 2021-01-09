@@ -83,7 +83,7 @@ class Bullet {
     }
   }
 
-  get angle() { return this._sprite.angle; }
+  get angle() { return this._angle; }
   set angle(val) {
     if (this._angle !== val) {
       this._angle = val;
@@ -210,7 +210,7 @@ class Scene extends Phaser.Scene {
       }
       console.error(msg);
     }, this);
-    this.fps = this.add.text(32, 32);
+    this.fps = this.add.text(32, 32, '', { color: '#0F0' });
   }
 
   update(_, dt) {
@@ -223,6 +223,9 @@ const scene = new Scene();
 
 const game = new Phaser.Game({
   type: Phaser.WEBGL,
+  fps: { target: 120 },
+  audio: { noAudio: true },
+  input: false,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
