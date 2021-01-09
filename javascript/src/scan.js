@@ -18,11 +18,18 @@ function isNumber(c) {
   return c >= '0' && c <= '9';
 }
 
+function isHex(c) {
+  if (typeof c !== 'string') { return false; }
+  return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+}
+
 function isIdChar(c) {
+  if (typeof c !== 'string') { return false; }
   return isAlpha(c) || isNumber(c) || c === '_';
 }
 
 function isWS(c) {
+  if (typeof c !== 'string') { return false; }
   return ' \t\n\r'.includes(c);
 }
 
@@ -67,6 +74,9 @@ function error(lineNumber, msg) {
 }
 
 function scan(input) {
+  if (typeof input !== 'string') {
+    throw new Error('Could not tokenize, input is not a string');
+  }
   src = input;
   line = 1;
   start = 0;
@@ -147,7 +157,12 @@ function scan(input) {
       }
 
       default: {
-        if (isNumber(c)) {
+        if (c === '0' && peek() === 'x') {
+          advance();
+          while (isHex(peek())) { advance(); }
+          const val = parseInt(src.slice(start, current), 16);
+          addToken(Token.NUMBER, val);
+        } else if (isNumber(c)) {
           while (isNumber(peek())) { advance(); }
 
           if (match('.')) {

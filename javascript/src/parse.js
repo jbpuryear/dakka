@@ -155,7 +155,6 @@ function synchronize() {
   panicMode = false;
 
   while (current.type !== Token.EOF) {
-    if (prev.type === Token.SEMI) { return; }
     switch (current.type) {
       case Token.VAR:
       case Token.GLOBAL:
