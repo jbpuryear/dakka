@@ -47,14 +47,17 @@ class Local {
 }
 
 class Compiler {
-  constructor(outer = null) {
+  constructor(outer = null, startLine = 1) {
     this.outer = outer;
     this.code = [];
-    this.lineMap = [];
     this.constants = new Map();
     this.scope = 0;
     this.locals = [];
     this.upvalues = [];
+    // lineMap holds pairs of numbers (line, fisrtOp) where line is a line number in the
+    // script being parsed and firstOp is the index of the first byte of machine code
+    // that matches this line. Used at runtime for error reporting.
+    this.lineMap = [];
   }
 
   getSlot(name) {
@@ -155,12 +158,16 @@ function synchronize() {
     if (prev.type === Token.SEMI) { return; }
     switch (current.type) {
       case Token.VAR:
+      case Token.GLOBAL:
       case Token.IF:
       case Token.WHILE:
-      case Token.LOOP:
+      case Token.FOR:
+      case Token.REPEAT:
       case Token.FUN:
       case Token.RETURN:
       case Token.SLEEP:
+      case Token.SPAWN:
+      case Token.THREAD:
         return;
       default:
         advance();
@@ -171,9 +178,6 @@ function synchronize() {
 function advance() {
   prev = current;
   current = tokens[idx];
-  if (prev && (current.line !== prev.line)) {
-    compiler.lineMap.push(compiler.code.length);
-  }
   idx += 1;
 }
 
@@ -192,6 +196,11 @@ function consume(type, err) {
 }
 
 function emitOp(op, param) {
+  const lm = compiler.lineMap;
+  if (lm.length === 0 || current.line !== lm[lm.length - 2]) {
+    lm.push(current.line);
+    lm.push(compiler.code.length);
+  }
   compiler.code.push(op);
   if (param !== undefined) {
     compiler.code.push(param);
@@ -480,7 +489,12 @@ function parsePrecedence(prec) {
 
   while (prec <= getRule(current.type).precedence && current.type !== Token.EOF) {
     advance();
-    getRule(prev.type).infix();
+    const rule = getRule(prev.type).infix;
+    if (!rule) {
+      error(prev, `No infix rule found for ${prev.lexeme}`);
+      return;
+    }
+    rule();
   }
 
   // If assignment was allowed, but while descending to the bottom of this expression

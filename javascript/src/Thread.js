@@ -243,7 +243,7 @@ class Thread {
           }
           const name = constants[this.advance()];
           if (!(name in target)) {
-            this.error('Cannot set undefined property on target object');
+            this.error(`Cannot set undefined property '${name}'`);
             return;
           }
           this.target[name] = stack[stack.length - 1];
@@ -260,7 +260,7 @@ class Thread {
           const val = target[name];
           switch (typeof val) {
             case 'undefined':
-              this.error('Cannot get undefined property on target object');
+              this.error(`Cannot get undefined property '${name}'`);
               return;
             case 'number':
             case 'function':
