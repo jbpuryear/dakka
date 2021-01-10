@@ -6,7 +6,7 @@ let line;
 let start;
 let current;
 let tokens;
-let hadError;
+let errors;
 
 function isAlpha(c) {
   if (typeof c !== 'string') { return false; }
@@ -66,23 +66,22 @@ function match(c) {
 }
 
 function error(lineNumber, msg) {
-  console.error(`DAKA LEXICAL ERROR [${lineNumber}] ${msg}`);
+  errors.push(`DAKA LEXICAL ERROR [line ${lineNumber}] ${msg}`);
   while (!isWS(peek()) && !eof()) {
     advance();
   }
-  hadError = true;
 }
 
 function scan(input) {
   if (typeof input !== 'string') {
-    throw new Error('Could not tokenize, input is not a string');
+    throw 'Could not tokenize, input is not a string';
   }
   src = input;
   line = 1;
   start = 0;
   current = 0;
   tokens = [];
-  hadError = false;
+  errors = [];
   let c;
 
   while (!eof()) {
@@ -188,8 +187,8 @@ function scan(input) {
   }
   addToken(Token.EOF);
 
-  if (hadError) {
-    throw new Error('DAKA_LEXICAL_ERROR');
+  if (errors.length > 0) {
+    throw errors.join('\n');
   }
 
   return tokens;

@@ -35,7 +35,7 @@ let tokens;
 let current;
 let prev;
 let idx;
-let hadError;
+let errors;
 let panicMode;
 
 class Local {
@@ -147,8 +147,8 @@ function getRule(type) {
 function error(token, msg) {
   if (panicMode) { return; }
   panicMode = true;
-  hadError = true;
-  console.error(`DAKA SYNTAX ERROR [line ${token.line}] ${msg}`);
+  const fullMsg = `DAKA SYNTAX ERROR [line ${token.line}] ${msg}`;
+  errors.push(fullMsg);
 }
 
 function synchronize() {
@@ -781,7 +781,7 @@ function parse(tkns) {
   current = null;
   prev = null;
   idx = 0;
-  hadError = false;
+  errors = [];
   panicMode = false;
 
   advance();
@@ -792,8 +792,8 @@ function parse(tkns) {
   emitOp(OP_CODES.NULL);
   emitOp(OP_CODES.RETURN);
 
-  if (hadError) {
-    throw new Error('DAKKA_SYNTAX_ERROR');
+  if (errors.length > 0) {
+    throw errors.join('\n');
   }
   return  new DakkaFunction(0, compiler.code, [...compiler.constants.keys()], compiler.lineMap, 1);
 }

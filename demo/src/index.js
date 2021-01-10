@@ -6,6 +6,10 @@ import Dakka from '../../javascript/src/Dakka.js';
 import EventEmitter from 'eventemitter3';
 import List from '../../javascript/src/List.js';
 import circle from './circle.png';
+import Split from 'split.js';
+
+Split(['#editor-pane', '#game-pane'], { sizes: [30, 70] });
+Split(['#game', '#errors'], { sizes: [90, 10], direction: 'vertical' });
 
 CodeMirror.defineSimpleMode("dakka", {
     // The start state contains the rules that are intially used
@@ -197,6 +201,7 @@ class Scene extends Phaser.Scene {
     const dakka = new Dakka(() => {
       return bullets.spawn();
     });
+    dakka.events.on('errored', logError);
     this.dakka = dakka;
 
 
@@ -229,13 +234,102 @@ const game = new Phaser.Game({
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    parent: document.getElementById('game-pane'),
+    parent: document.getElementById('game'),
   },
   scene: scene,
 });
 
+const examples = {
+  simple:
+`for (var i = 0, 500) {
+  for (var j = 0, 360, 20) {
+    var rad = TAU * i / 360;
+    spawn[ x=500+cos(rad)*200, y=400+sin(rad)*200, speed=100, angle=j+i*12 ];
+    spawn[ x=500+cos(rad+PI)*200, y=400+sin(rad+PI)*200, speed=100, angle=j+i*12 ];
+  }
+  sleep 16;
+}`,
+  threads:
+`fun f() {
+  for (var i = 1, 50) {
+    for (var j = 40, 360, 40) {
+      spawn[ x=500, y=400, speed=50+i*5, angle=j+i*6 ];
+    }
+    sleep 100;
+  }
+}
+
+fun g() {
+  for (var i = 1, 20) {
+    for (var j = 20, 360, 20) {
+      spawn[ x=500, y=400, speed=100, angle=j+i*12 ];
+    }
+    sleep 200;
+  }
+}
+
+thread(f);
+sleep 1000;
+thread(g);`,
+  callbacks: `fun circle(x, y, count, speed, script) {
+  if (script) {
+    for (var i = 0, count) {
+      spawn (script) [ x=x, y=y, speed=speed, angle=i* 360 / count ];
+    }
+  } else {
+    for (var i = 0, count) {
+      spawn [ x=x, y=y, speed=speed, angle=i*360/count ];
+    }
+  }
+}
+
+fun steer() {
+  repeat(30) {
+    sleep 16;
+    [angle] += 4;
+  }
+  var oldS = [speed];
+  [speed] = 40;
+  sleep 500;
+  [speed] = oldS;
+  circle([x], [y], 16, 240, fun() {
+    sleep 1000;
+    var oldS = [speed];
+    [speed] = 40;
+    sleep 800;
+    [speed] = oldS;
+    circle([x], [y], 8, 100, null);
+  });
+}
+
+circle(500, 400, 32, 360, steer);`,
+}
+
+const list = document.getElementById('examples');
+list.addEventListener('change', function(val) {
+  editor.setValue(examples[this.value] || '');
+  this.selectedIndex = 0;
+});
+
+let errs = [];
+const messageBox = document.getElementById('msg');
+function logError(_, msg) {
+  errs.push(msg);
+}
+
 document.getElementById('run').addEventListener('click', () => {
   scene.dakka.killAll();
   scene.bullets.killAll();
+  errs = [];
   scene.dakka.run(editor.getValue());
+  messageBox.textContent = errs.join('\n');
 });
+
+const helpModal = document.getElementById('help-modal');
+const help = document.getElementById('help');
+function toggleHelp() {
+  const mode = helpModal.style.display === 'block' ? 'none' : 'block';
+  helpModal.style.display = mode;
+  help.textContent = mode === 'block' ? '⨯' : '?';
+}
+help.addEventListener('click', toggleHelp);

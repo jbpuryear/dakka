@@ -9,7 +9,7 @@
     "test": "mocha --exclude **/fib.js"
   },
   "author": "",
-  "license": "MIT",
+  "license": "",
   "type": "module",
   "devDependencies": {
     "eslint": "^7.16.0",

@@ -45,7 +45,7 @@ class Dakka {
       try {
         compiled = Dakka.compile(script);
       } catch (e) {
-        this.events.emit('errored', target, 'Failed to compile');
+        this.events.emit('errored', target, e);
         return;
       }
     } else {
