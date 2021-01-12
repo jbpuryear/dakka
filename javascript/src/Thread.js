@@ -355,7 +355,14 @@ class Thread {
         case 30: { // SPAWN
           const argCount = this.advance();
           const propCount = this.advance();
-          const target = this.vm._spawn();
+          const vm = this.vm;
+          const factory = vm.factory;
+          const target = typeof factory === 'function' ? factory() : null;
+          if (!target) {
+            this.error('Failed to spawn target object, no factory function found');
+            return;
+          }
+
 
           for (let i = 0; i < propCount; i += 1) {
             const name = constants[this.advance()];
@@ -363,18 +370,20 @@ class Thread {
             if (name in target) {
               target[name] = val;
             } else {
-              this.vm.events.emit('errored', target,
+              vm.events.emit('errored', target,
                 'Cannot assign undefined property of spawned target object');
-              this.error('Failed to spawn child thread');
+              this.error('Failed to spawn target object, invalid property in initializer');
               return;
             }
           }
+
+          vm.events.emit('spawned', target);
 
           if (argCount !== -1) {
             const args = argCount > 0 ? stack.splice(-argCount) : undefined;
             const script = stack.pop();
             // See this
-            this.vm._startThread(script, args, target);
+            vm._startThread(script, args, target);
           }
           break;
         }

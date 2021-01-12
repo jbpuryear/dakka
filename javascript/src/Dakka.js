@@ -7,17 +7,13 @@ import scan from './scan.js';
 import parse from './parse.js';
 import decompile from './decompile.js';
 
-function defaultFactory() {
-  return {};
-}
-
 // Events
 //   errored - Emitted when a thread has a runtime error, or if run is called with a string
 //             that fails to compile. Callbacks are passed the threads target and an error message.
 //   spawned - Emitted whenever a new target object is spawned using the provided factory
 //             function. Callbacks are passed the target object.
 class Dakka {
-  constructor(factory = defaultFactory) {
+  constructor(factory) {
     this.factory = factory;
     this.debug = false;
     this.events = new EventEmitter();
@@ -93,12 +89,6 @@ class Dakka {
     this._threads.head = null;
     this._threads.tail = null;
     this._targetMap.clear();
-  }
-
-  _spawn() {
-    const s = this.factory();
-    this.events.emit('spawned', s);
-    return s;
   }
 
   _startThread(script, args, target, callback) {
