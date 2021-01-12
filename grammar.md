@@ -35,8 +35,8 @@ forStmt        → "for" "(" "var" IDENTIFIER "=" expression "," expression  (",
 repeatStmt     → "repeat" "(" expression ")" statement ;
 threadStmt     → "thread" "(" expression ("," expression)* ")" ";" ;
 spawnStmt      → "spawn"
-                   ( "(" expression ("," expression)* ")" )? ";"
-                   ( "[" (IDENTIFIER "=" expression ("," IDENTIFIER "=" expression)*)? "]" )? ";" ;
+                   ( "[" (IDENTIFIER "=" expression ("," IDENTIFIER "=" expression)*)? "]" )? ";"
+                   ( "(" expression ("," expression)* ")" )? ";" ;
 block          → "{" declaration* "}" ;
 ```
 

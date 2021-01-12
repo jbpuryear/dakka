@@ -538,15 +538,6 @@ function threadStmt() {
 }
 
 function spawnStmt() {
-  let argCount = -1;
-  if (match(Token.L_PAREN)) {
-    // Less one because the first argument should be the function to call
-    argCount = argumentList() - 1;
-    if (argCount === -1) {
-      error('Missing function in spawn statement')
-    }
-  }
-
   const propNames = [];
   if (match(Token.L_BRACKET)) {
     if (current.type !== 'R_BRACKET') {
@@ -558,6 +549,15 @@ function spawnStmt() {
       } while (match(Token.COMMA));
     }
     consume('R_BRACKET', "Expect ']' after properties list");
+  }
+
+  let argCount = -1;
+  if (match(Token.L_PAREN)) {
+    // Less one because the first argument should be the function to call
+    argCount = argumentList() - 1;
+    if (argCount === -1) {
+      error('Missing function in spawn statement')
+    }
   }
 
   emitOp(OP_CODES.SPAWN);

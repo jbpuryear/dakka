@@ -36,7 +36,7 @@ describe('Spawn', () => {
   });
 
   it('Spawns a thread with property list', (done) => {
-    dakka.run("var f = fun(i) { [foo] = [foo] - i; }; spawn(f, 3)[ foo = 7 ];", false, () => {
+    dakka.run("var f = fun(i) { [foo] = [foo] - i; }; spawn[ foo = 7 ](f, 3);", false, () => {
       assert.equal(obj.foo, 4);
       done();
     });

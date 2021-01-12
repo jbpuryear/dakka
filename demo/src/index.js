@@ -274,7 +274,7 @@ thread(g);`,
   callbacks: `fun circle(x, y, count, speed, script) {
   if (script) {
     for (var i = 0, count) {
-      spawn (script) [ x=x, y=y, speed=speed, angle=i* 360 / count ];
+      spawn [ x=x, y=y, speed=speed, angle=i* 360 / count ] (script);
     }
   } else {
     for (var i = 0, count) {
@@ -306,8 +306,8 @@ circle(500, 400, 32, 360, steer);`,
   readme: `fun circle(x, y, count, speed, script) {
   if (script) {
     for (var i = 0, count) {
-      spawn (script) [ x=x, y=y, speed=speed,
-        angle=i* 360 / count ];
+      spawn [ x=x, y=y, speed=speed,
+        angle=i* 360 / count ] (script);
     }
   } else {
     for (var i = 0, count) {

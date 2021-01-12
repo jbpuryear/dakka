@@ -357,10 +357,18 @@ class Thread {
           const propCount = this.advance();
           const vm = this.vm;
           const factory = vm.factory;
+
           const target = typeof factory === 'function' ? factory() : null;
           if (!target) {
             this.error('Failed to spawn target object, no factory function found');
             return;
+          }
+
+          let args;
+          let script;
+          if (argCount !== -1) {
+            args = argCount > 0 ? stack.splice(-argCount) : undefined;
+            script = stack.pop();
           }
 
           for (let i = 0; i < propCount; i += 1) {
@@ -377,11 +385,7 @@ class Thread {
           }
 
           vm.events.emit('spawned', target);
-
           if (argCount !== -1) {
-            const args = argCount > 0 ? stack.splice(-argCount) : undefined;
-            const script = stack.pop();
-            // See this
             vm._startThread(script, args, target);
           }
           break;
