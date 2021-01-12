@@ -17,7 +17,7 @@ class Dakka {
     this.factory = factory;
     this.debug = false;
     this.events = new EventEmitter();
-    this.global = new Environment();
+    this._global = new Environment();
     this._threads = new List();
     this._targetMap = new Map();
   }
@@ -58,7 +58,7 @@ class Dakka {
       case 'number':
       case 'string':
       case 'function':
-        this.global.set(name, val);
+        this._global.set(name, val);
         return true;
       default:
         this.events.emit('error', null, `Can't add native, invalid type '${type}'`);
@@ -114,7 +114,5 @@ class Dakka {
     this.events.emit('errored', target, msg);
   }
 }
-
-Dakka.decompile = decompile;
 
 export default Dakka;

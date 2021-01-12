@@ -179,7 +179,7 @@ class Thread {
         case 18: { // INIT_GLOBAL
           const name = constants[this.advance()]
           try {
-            this.vm.global.set(name, stack.pop());
+            this.vm._global.set(name, stack.pop());
           } catch (e) {
             this.error(`Can't initialize global, '${name}', already exists`);
             return;
@@ -189,8 +189,8 @@ class Thread {
 
         case 19: { // SET_GLOBAL
           const name = constants[this.advance()]
-          if (this.vm.global.has(name)) {
-            this.vm.global.set(name, stack[stack.length - 1]);
+          if (this.vm._global.has(name)) {
+            this.vm._global.set(name, stack[stack.length - 1]);
           } else {
             this.error(`Can't assign to undeclared variable, '${name}'`);
             return;
@@ -200,7 +200,7 @@ class Thread {
 
         case 20: { // GET_GLOBAL
           const name = constants[this.advance()]
-          const val = this.vm.global.get(name);
+          const val = this.vm._global.get(name);
           if (val !== undefined) {
             stack.push(val);
           } else {
