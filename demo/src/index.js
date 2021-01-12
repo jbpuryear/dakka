@@ -303,6 +303,37 @@ fun steer() {
 }
 
 circle(500, 400, 32, 360, steer);`,
+  readme: `fun circle(x, y, count, speed, script) {
+  if (script) {
+    for (var i = 0, count) {
+      spawn (script) [ x=x, y=y, speed=speed,
+        angle=i* 360 / count ];
+    }
+  } else {
+    for (var i = 0, count) {
+      spawn [ x=x, y=y, speed=speed,
+        angle=i*360/count ];
+    }
+  }
+}
+
+fun waitThenStop(before, after) {
+  sleep before;
+  [speed] = 0;
+  sleep after;
+}
+
+circle(512, 380, 100, 1000, fun() {
+  waitThenStop(250, 400);
+  circle([x], [y], 7, 500, fun() {
+    waitThenStop(200, 500);
+    for (var i = 1, 10) {
+      spawn [ x=[x], y=[y], speed=400,
+        angle=[angle] + rand() * 30 - 15 ];
+      sleep 20;
+    }
+  });
+});`,
 }
 
 const list = document.getElementById('examples');
