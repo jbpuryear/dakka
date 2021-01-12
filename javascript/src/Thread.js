@@ -363,7 +363,6 @@ class Thread {
             return;
           }
 
-
           for (let i = 0; i < propCount; i += 1) {
             const name = constants[this.advance()];
             const val = stack.pop();

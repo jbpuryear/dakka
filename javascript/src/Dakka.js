@@ -95,6 +95,8 @@ class Dakka {
     const thread = new Thread(this);
     this._threads.shift(thread);
     if (target) {
+      // If any other threads are acting on this target we kill them.
+      this.killByTarget(target);
       this._targetMap.set(target, thread);
     }
     thread.run(script, args, target, callback);
