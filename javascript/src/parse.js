@@ -505,7 +505,7 @@ function parsePrecedence(prec) {
 }
 
 function returnStmt() {
-  if (match(Token.SEMI)) {
+  if (current.type === Token.SEMI) {
     emitOp(OP_CODES.NULL);
   } else {
     expression();
@@ -540,7 +540,7 @@ function threadStmt() {
 function spawnStmt() {
   const propNames = [];
   if (match(Token.L_BRACKET)) {
-    if (current.type !== 'R_BRACKET') {
+    if (current.type !== Token.R_BRACKET) {
       do {
         consume(Token.IDENTIFIER, 'Invalid property identifier');
         propNames.push(prev.lexeme);

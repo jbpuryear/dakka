@@ -36,6 +36,16 @@ describe('Function calls', () => {
     });
   });
 
+  it('Returns without expression', (done) => {
+    dakka.run('return;', false, (val) => {
+      assert.equal(null, val);
+    });
+    dakka.run('while (true) { return; }', false, (val) => {
+      assert.equal(null, val);
+      done();
+    });
+  });
+
   it('Fails to call non function primitives', () => {
     assert.throws(() => { dakka.run('var a = 1; a();') });
     assert.throws(() => { dakka.run('var a = ""; a();') });
