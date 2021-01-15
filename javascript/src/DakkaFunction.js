@@ -10,15 +10,6 @@ class DakkaFunction {
     this.startLine = startLine;
     this.lineMap = lineMap;
   }
-
-  getLine(opIdx) {
-    let lm = this.lineMap;
-    let i = 1;
-    while (i < lm.length && opIdx > lm[i]) {
-      i += 2;
-    }
-    return lm[i - 3];
-  }
 }
 
 export default DakkaFunction;
