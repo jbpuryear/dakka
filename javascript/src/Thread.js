@@ -19,25 +19,26 @@ function areNumbers(thread, a, b) {
 class Thread {
   constructor(vm) {
     this.vm = vm;
+    this.callStack = [];
+    this.prev = null;
+    this.next = null;
+    this.reset();
+  }
+
+  reset() {
     this.callback = null;
     this.target = null;
     this.sleep = 0;
     this.stack = null;
-    this.callStack = [];
+    this.callStack.length = 0;
     this.frame = null;
-    this.prev = null;
-    this.next = null;
     this.openUpvalues = null;
   }
 
   run(script, args = [], target = null, callback = null) {
     this.callback = callback;
     this.target = target;
-    this.sleep = 0;
     this.stack = args;
-    this.callStack.length = 0;
-    this.frame = null;
-    this.openUpvalues = null;
 
     this.pushFrame(new StackFrame(script));
     if (args.length !== script.func.arity) {

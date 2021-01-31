@@ -19,6 +19,7 @@ class Dakka {
     this.events = new EventEmitter();
     this._global = new Environment();
     this._threads = new List();
+    this._pool = [];
     this._targetMap = new Map();
   }
 
@@ -92,7 +93,7 @@ class Dakka {
   }
 
   _startThread(script, args, target, callback) {
-    const thread = new Thread(this);
+    const thread = this._pool.pop() || new Thread(this);
     this._threads.shift(thread);
     if (target) {
       // If any other threads are acting on this target we kill them.
@@ -107,6 +108,8 @@ class Dakka {
     if (thread.target) {
       this._targetMap.delete(thread.target);
     }
+    thread.reset();
+    this._pool.push(thread);
   }
 
   _error(target, msg) {
