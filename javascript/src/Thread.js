@@ -23,25 +23,31 @@ class Thread {
     this.target = null;
     this.sleep = 0;
     this.stack = null;
-    this.callStack = null;
+    this.callStack = [];
     this.frame = null;
     this.prev = null;
     this.next = null;
     this.openUpvalues = null;
   }
 
-  run(script, args = [], target, callback = null) {
-    // TODO Script arguments
+  run(script, args = [], target = null, callback = null) {
     this.callback = callback;
+    this.target = target;
+    this.sleep = 0;
+    this.stack = args;
+    this.callStack.length = 0;
+    this.frame = null;
+    this.openUpvalues = null;
+
+    this.pushFrame(new StackFrame(script));
+    if (args.length !== script.func.arity) {
+      this.error(`Cannot start script, expected ${script.func.arity} arguments, received ${args.length}`);
+      return;
+    }
     if (script.func.code.length === 0) {
       this.dReturn(null);
       return;
     }
-    this.sleep = 0;
-    this.stack = Array.isArray(args) ? args : [];
-    this.callStack = [];
-    this.pushFrame(new StackFrame(script));
-    this.target = target;
     this.update(0);
   }
 
@@ -367,7 +373,7 @@ class Thread {
           let args;
           let script;
           if (argCount !== -1) {
-            args = argCount > 0 ? stack.splice(-argCount) : undefined;
+            args = argCount > 0 ? stack.splice(-argCount) : [];
             script = stack.pop();
           }
 
@@ -393,10 +399,7 @@ class Thread {
 
         case 31: { // THREAD
           const argCount = this.advance();
-          let args = null;
-          if (argCount > 0) {
-            args = stack.splice(-argCount);
-          }
+          let args = argCount > 0 ? stack.splice(-argCount): [];
           const script = stack.pop();
           this.vm._startThread(script, args, null);
           break;

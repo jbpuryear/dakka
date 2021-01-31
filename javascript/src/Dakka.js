@@ -26,7 +26,7 @@ class Dakka {
     return parse(scan(src));
   }
 
-  run(script, spawn = false, callback) {
+  run(script, spawn = false, callback = null, ...args) {
     let target;
     if (spawn === true) {
       target = typeof this.factory === 'function' ? this.factory() : {};
@@ -48,7 +48,7 @@ class Dakka {
       compiled = script;
     }
     const close = new Closure(compiled)
-    this._startThread(close, null, target, callback);
+    this._startThread(close, args, target, callback);
     return spawn;
   }
 

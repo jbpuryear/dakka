@@ -775,6 +775,18 @@ function declaration() {
   }
 }
 
+function argDeclaration() {
+  let arity = 0;
+  while (match(Token.IDENTIFIER)) {
+    compiler.makeVar(prev.lexeme);
+    compiler.markInitialized();
+    arity += 1;
+    match(Token.COMMA);
+  }
+  consume(Token.SEMI, 'Expected semicolon after script argument list');
+  return arity;
+}
+
 function parse(tkns) {
   compiler = new Compiler;
   tokens = tkns;
@@ -785,6 +797,12 @@ function parse(tkns) {
   panicMode = false;
 
   advance();
+  
+  let arity = 0;
+  if (match(Token.ARGS)) {
+    arity = argDeclaration();
+  }
+
   while (current.type !== Token.EOF) {
     declaration();
   }
@@ -795,7 +813,7 @@ function parse(tkns) {
   if (errors.length > 0) {
     throw errors.join('\n');
   }
-  return  new DakkaFunction(0, compiler.code, [...compiler.constants.keys()], compiler.lineMap, 1);
+  return  new DakkaFunction(arity, compiler.code, [...compiler.constants.keys()], compiler.lineMap, 1);
 }
 
 export default parse;

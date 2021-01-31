@@ -16,4 +16,5 @@ export default new Map([
   ['sleep', Token.SLEEP],
   ['spawn', Token.SPAWN],
   ['thread', Token.THREAD],
+  ['args', Token.ARGS],
 ]);
