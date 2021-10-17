@@ -309,10 +309,9 @@ class Thread {
               this.error(`Wrong number of arguments to native function, ${script.toString()}`);
               return;
             }
-            const args = [];
-            for (let i = 0; i < argCount; i += 1) {
-              args.push(stack.pop());
-            }
+            const args = argCount > 0 ? stack.splice(-argCount) : undefined;
+            // Dakka functions get popped off the stack when we close upvalues, but
+            // natives are popped here
             stack.pop();
             const ret = script.apply(null, args);
             switch (typeof ret) {
