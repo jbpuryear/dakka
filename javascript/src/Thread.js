@@ -319,6 +319,7 @@ class Thread {
               case 'number':
               case 'string':
               case 'function':
+              case 'boolean':
                 break;
               default:
                 this.error(`Invalid return type from native function, ${script.toString()}`);
