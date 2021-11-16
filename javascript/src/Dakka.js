@@ -13,7 +13,7 @@ import decompile from './decompile.js';
 //   spawned - Emitted whenever a new target object is spawned using the provided factory
 //             function. Callbacks are passed the target object.
 class Dakka {
-  constructor(factory) {
+  constructor(factory, getter, setter) {
     this.factory = factory;
     this.debug = false;
     this.events = new EventEmitter();
@@ -21,6 +21,8 @@ class Dakka {
     this._threads = new List();
     this._pool = [];
     this._targetMap = new Map();
+    this._getter = getter || null;
+    this._setter = setter || null;
   }
 
   static compile(src) {
@@ -100,6 +102,8 @@ class Dakka {
       this.killByTarget(target);
       this._targetMap.set(target, thread);
     }
+    if (this._getter) { thread.getter = this._getter; }
+    if (this._setter) { thread.setter = this._setter; }
     thread.run(script, args, target, callback);
   }
 

@@ -1,7 +1,7 @@
 import StackFrame from './StackFrame.js';
 import Closure from './Closure.js';
 import Upvalue from './Upvalue.js';
-import OP_CODES from './OP_CODES.js';
+
 
 function isNumber(thread, operand) {
   if ((typeof operand) !== 'number') {
@@ -11,8 +11,21 @@ function isNumber(thread, operand) {
   return true;
 }
 
+
 function areNumbers(thread, a, b) {
   return (isNumber(thread, a) && isNumber(thread, b));
+}
+
+
+function getter(target, prop) {
+  if (!(prop in target)) { throw new Error('Invalid property on target'); }
+  return target[prop];
+}
+
+
+function setter(target, prop, value) {
+  if (!(prop in target)) { throw new Error('Invalid property on target'); }
+  target[prop] = value;
 }
 
 
@@ -23,6 +36,8 @@ class Thread {
     this.prev = null;
     this.next = null;
     this.reset();
+    this.getter = getter;
+    this.setter = setter;
   }
 
   reset() {
@@ -30,7 +45,7 @@ class Thread {
     this.target = null;
     this.sleep = 0;
     this.stack = null;
-    this.callStack.length = 0;
+    this.callStack = [];
     this.frame = null;
     this.openUpvalues = null;
   }
@@ -249,22 +264,23 @@ class Thread {
             return;
           }
           const name = constants[this.advance()];
-          if (!(name in target)) {
-            this.error(`Cannot set undefined property '${name}'`);
+          try {
+            this.setter(target, name, stack[stack.length - 1]);
+          } catch (e) {
+            this.error(`Cannot set undefined property '${name}': ${e}`);
             return;
           }
-          this.target[name] = stack[stack.length - 1];
           break;
         }
 
         case 26: { // GET_PROP
           const target = this.target;
           if (!target) {
-            this.error('Cannot get property, this has no target object');
+            this.error('Cannot get property, no target object');
             return;
           }
           const name = constants[this.advance()];
-          const val = target[name];
+          const val = this.getter(target, name);
           switch (typeof val) {
             case 'undefined':
               this.error(`Cannot get undefined property '${name}'`);
@@ -381,12 +397,12 @@ class Thread {
           for (let i = 0; i < propCount; i += 1) {
             const name = constants[this.advance()];
             const val = stack.pop();
-            if (name in target) {
-              target[name] = val;
-            } else {
+            try {
+              this.setter(target, name, val);
+            } catch (e) {
               vm.events.emit('errored', target,
                 'Cannot assign undefined property of spawned target object');
-              this.error('Failed to spawn target object, invalid property in initializer');
+              this.error(`Failed to spawn target object, invalid property in initializer: ${e}`);
               return;
             }
           }
