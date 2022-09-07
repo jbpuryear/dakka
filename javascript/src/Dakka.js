@@ -1,11 +1,11 @@
-import EventEmitter from 'eventemitter3';
+import EventEmitter from './EventEmitter.js';
 import Environment from './Environment.js';
 import Thread from './Thread.js';
 import Closure from './Closure.js';
 import List from './List.js';
 import scan from './scan.js';
 import parse from './parse.js';
-import decompile from './decompile.js';
+
 
 // Events
 //   errored - Emitted when a thread has a runtime error, or if run is called with a string
