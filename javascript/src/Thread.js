@@ -18,14 +18,14 @@ function areNumbers(thread, a, b) {
 
 
 function getter(target, prop) {
-  if (!(prop in target)) { throw new Error('Invalid property on target'); }
+  if (!(prop in target)) { return undefined; }
   return target[prop];
 }
 
 
 function setter(target, prop, value) {
-  if (!(prop in target)) { throw new Error('Invalid property on target'); }
-  target[prop] = value;
+  if (!(prop in target)) { return undefined; }
+  return target[prop] = value;
 }
 
 
@@ -200,19 +200,20 @@ class Thread {
 
         case 18: { // INIT_GLOBAL
           const name = constants[this.advance()]
-          try {
-            this.vm._global.set(name, stack.pop());
-          } catch (e) {
+          const glb = this.vm._global;
+          if (glb.has(name)) {
             this.error(`Can't initialize global, '${name}', already exists`);
-            return;
+          } else {
+            this.vm._global.set(name, stack.pop());
           }
           break;
         }
 
         case 19: { // SET_GLOBAL
           const name = constants[this.advance()]
-          if (this.vm._global.has(name)) {
-            this.vm._global.set(name, stack[stack.length - 1]);
+          const glb = this.vm._global;
+          if (glb.has(name)) {
+            glb.set(name, stack[stack.length - 1]);
           } else {
             this.error(`Can't assign to undeclared variable, '${name}'`);
             return;
@@ -264,10 +265,8 @@ class Thread {
             return;
           }
           const name = constants[this.advance()];
-          try {
-            this.setter(target, name, stack[stack.length - 1]);
-          } catch (e) {
-            this.error(`Cannot set undefined property '${name}': ${e}`);
+          if (this.setter(target, name, stack[stack.length - 1]) === undefined) {
+            this.error(`Cannot set undefined property ${name}`);
             return;
           }
           break;
@@ -397,12 +396,8 @@ class Thread {
           for (let i = 0; i < propCount; i += 1) {
             const name = constants[this.advance()];
             const val = stack.pop();
-            try {
-              this.setter(target, name, val);
-            } catch (e) {
-              vm.events.emit('errored', target,
-                'Cannot assign undefined property of spawned target object');
-              this.error(`Failed to spawn target object, invalid property in initializer: ${e}`);
+            if (this.setter(target, name, val) === undefined) {
+              this.error(`Failed to spawn target object, invalid property in initializer: ${name}`);
               return;
             }
           }
@@ -552,9 +547,8 @@ class Thread {
 
   error(msg) {
     const line = this.frame.script.getLine(this.frame.pc - 1);
-    const target = this.target;
     this.vm._kill(this);
-    this.vm._error(target, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
+    this.vm._error(this.target, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
   }
 }
 
