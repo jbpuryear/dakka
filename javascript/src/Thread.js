@@ -203,6 +203,7 @@ class Thread {
           const glb = this.vm._global;
           if (glb.has(name)) {
             this.error(`Can't initialize global, '${name}', already exists`);
+            return;
           } else {
             this.vm._global.set(name, stack.pop());
           }
