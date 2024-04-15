@@ -6,6 +6,15 @@ import List from './List.js';
 import scan from './scan.js';
 import parse from './parse.js';
 
+function defaultGetter(target, prop) {
+  if (!(prop in target)) { return undefined; }
+  return target[prop];
+}
+
+function defaultSetter(target, prop, value) {
+  if (!(prop in target)) { return undefined; }
+  return target[prop] = value;
+}
 
 // Events
 //   errored - Emitted when a thread has a runtime error, or if run is called with a string
@@ -13,46 +22,56 @@ import parse from './parse.js';
 //   spawned - Emitted whenever a new target object is spawned using the provided factory
 //             function. Callbacks are passed the target object.
 class Dakka {
-  constructor(factory, getter, setter) {
-    this.factory = factory;
+  constructor() {
     this.debug = false;
     this.events = new EventEmitter();
+    this._types = new Map();
     this._global = new Environment();
+    this._nextId = 1;
     this._threads = new List();
+    this._threadMap = new Map();
     this._pool = [];
-    this._targetMap = new Map();
-    this._getter = getter || null;
-    this._setter = setter || null;
   }
 
   static compile(src) {
     return parse(scan(src));
   }
 
-  run(script, spawn = false, callback = null, ...args) {
-    let target;
-    if (spawn === true) {
-      target = typeof this.factory === 'function' ? this.factory() : {};
-    } else if (typeof spawn === 'object') {
-      target = spawn;
-    } else {
-      target = null;
-    }
-
+  run(script, spawn = null, callback = null, ...args) {
     let compiled;
     if (typeof script === 'string') {
       try {
         compiled = Dakka.compile(script);
       } catch (e) {
-        this.events.emit('errored', target, e);
+        this._error(spawn, e);
         return;
       }
     } else {
       compiled = script;
     }
     const close = new Closure(compiled)
-    this._startThread(close, args, target, callback);
-    return spawn;
+
+    const thread = this._aquireThread();
+    let target = null;
+    let getter = defaultGetter;
+    let setter = defaultSetter;
+    const spawnType = typeof spawn;
+    if (spawnType === 'string') {
+      const type = this._types.get(spawn);
+      if (type) {
+        target = type.factory(thread.id);
+        setter = type.setter;
+        getter = type.getter;
+      } else {
+        this._error(null, `Invalid factory function`);
+        return;
+      }
+    } else if (typeof spawn === 'object') {
+      target = spawn;
+    }
+
+    this._startThread(thread, close, args, target, getter, setter, callback);
+    return thread.id;
   }
 
   addNative(name, val) {
@@ -64,9 +83,21 @@ class Dakka {
         this._global.set(name, val);
         return true;
       default:
-        this.events.emit('error', null, `Can't add native, invalid type '${type}'`);
+        this._error(null, `Can't add native, invalid type '${type}'`);
         return false;
     }
+  }
+
+  addType(key, factory, getter = defaultGetter, setter = defaultSetter) {
+    if (typeof key !== 'string') {
+      this._error(null, 'Invalid type identifier');
+      return false;
+    } else if (typeof factory !== 'function' || typeof getter !== 'function' || typeof setter !== 'function') {
+      this._error(null, 'Invalid type definition');
+      return false;
+    }
+    this._types.set(key, { factory, getter, setter });
+    return true;
   }
 
   update(dt) {
@@ -78,42 +109,36 @@ class Dakka {
     }
   }
 
-  killByTarget(target) {
-    const thread = this._targetMap.get(target);
-    if (thread) {
-      this._targetMap.delete(target);
-      this._threads.remove(thread);
-      return true;
+  kill(id) {
+    const thread = this._threadMap.get(id);
+    if (!thread) {
+      return false;
     }
-    return false;
+    this._threads.remove(thread);
+    this._threadMap.delete(thread.id);
+    thread.reset();
+    this._pool.push(thread);
+    return true;
   }
 
   killAll() {
     this._threads.head = null;
     this._threads.tail = null;
-    this._targetMap.clear();
+    this._threadMap.clear();
   }
 
-  _startThread(script, args, target, callback) {
-    const thread = this._pool.pop() || new Thread(this);
+  _startThread(thread, script, args = [], target = null, getter = defaultGetter, setter = defaultSetter, callback = null) {
     this._threads.shift(thread);
-    if (target) {
-      // If any other threads are acting on this target we kill them.
-      this.killByTarget(target);
-      this._targetMap.set(target, thread);
-    }
-    if (this._getter) { thread.getter = this._getter; }
-    if (this._setter) { thread.setter = this._setter; }
-    thread.run(script, args, target, callback);
+    this._threadMap.set(thread.id, thread);
+    thread.run(script, args, target, getter, setter, callback);
+    return thread;
   }
 
-  _kill(thread) {
-    this._threads.remove(thread);
-    if (thread.target) {
-      this._targetMap.delete(thread.target);
-    }
-    thread.reset();
-    this._pool.push(thread);
+  _aquireThread() {
+    const thread = this._pool.pop() || new Thread(this);
+    thread.id = this._nextId;
+    this._nextId += 1;
+    return thread;
   }
 
   _error(target, msg) {

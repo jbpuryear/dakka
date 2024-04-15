@@ -17,18 +17,6 @@ function areNumbers(thread, a, b) {
 }
 
 
-function getter(target, prop) {
-  if (!(prop in target)) { return undefined; }
-  return target[prop];
-}
-
-
-function setter(target, prop, value) {
-  if (!(prop in target)) { return undefined; }
-  return target[prop] = value;
-}
-
-
 class Thread {
   constructor(vm) {
     this.vm = vm;
@@ -36,13 +24,13 @@ class Thread {
     this.prev = null;
     this.next = null;
     this.reset();
-    this.getter = getter;
-    this.setter = setter;
   }
 
   reset() {
     this.callback = null;
     this.target = null;
+    this.getter = null;
+    this.setter = null;
     this.sleep = 0;
     this.stack = null;
     this.callStack = [];
@@ -50,9 +38,11 @@ class Thread {
     this.openUpvalues = null;
   }
 
-  run(script, args = [], target = null, callback = null) {
+  run(script, args, target, getter, setter, callback = null) {
     this.callback = callback;
     this.target = target;
+    this.getter = getter;
+    this.setter = setter;
     this.stack = args;
 
     this.pushFrame(new StackFrame(script));
@@ -367,7 +357,7 @@ class Thread {
             this.closeUpvalues(this.frame.slots);
             this.popFrame();
             constants = this.frame.constants;
-            // The called function is still sitting on here on the stack, so
+            // The called function is still sitting here on the stack, so
             // we pop it and restore the return value.
             stack.pop();
             stack.push(returnValue);
@@ -376,37 +366,44 @@ class Thread {
         }
 
         case 30: { // SPAWN
-          const argCount = this.advance();
-          const propCount = this.advance();
           const vm = this.vm;
-          const factory = vm.factory;
 
-          const target = typeof factory === 'function' ? factory() : null;
-          if (!target) {
-            this.error('Failed to spawn target object, no factory function found');
+          const typeName = constants[this.advance()];
+          const type = vm._types.get(typeName);
+          if (!type) {
+            this.error(`Uknown type: ${typeName}`);
             return;
           }
 
+          const argCount = this.advance();
+          const propCount = this.advance();
+
           let args;
           let script;
+          let target;
+          let thread;
           if (argCount !== -1) {
             args = argCount > 0 ? stack.splice(-argCount) : [];
             script = stack.pop();
+            thread = vm._aquireThread();
+            target = type.factory(thread.id);
+          } else {
+            target = type.factory(-1);
           }
 
           for (let i = 0; i < propCount; i += 1) {
             const name = constants[this.advance()];
             const val = stack.pop();
-            if (this.setter(target, name, val) === undefined) {
+            if (type.setter(target, name, val) === undefined) {
               this.error(`Failed to spawn target object, invalid property in initializer: ${name}`);
               return;
             }
           }
 
-          vm.events.emit('spawned', target);
-          if (argCount !== -1) {
-            vm._startThread(script, args, target);
+          if (thread) {
+            vm._startThread(thread, script, args, target, type.getter, type.setter);
           }
+          vm.events.emit('spawned', target);
           break;
         }
 
@@ -414,7 +411,7 @@ class Thread {
           const argCount = this.advance();
           let args = argCount > 0 ? stack.splice(-argCount): [];
           const script = stack.pop();
-          this.vm._startThread(script, args, null);
+          this.vm._startThread(this.vm._aquireThread(), script, args);
           break;
         }
 
@@ -530,12 +527,13 @@ class Thread {
   }
 
   advance() {
-    if (this.frame.pc >= this.frame.code.length) {
+    const frame = this.frame;
+    if (frame.pc >= frame.code.length) {
       this.error('SegFault, end of code reached');
       return;
     }
-    const op = this.frame.code[this.frame.pc];
-    this.frame.pc += 1;
+    const op = frame.code[frame.pc];
+    frame.pc += 1;
     return op;
   }
 
@@ -543,12 +541,12 @@ class Thread {
     if (typeof this.callback === 'function') {
       this.callback(val);
     }
-    this.vm._kill(this);
+    this.vm.kill(this.id);
   }
 
   error(msg) {
     const line = this.frame.script.getLine(this.frame.pc - 1);
-    this.vm._kill(this);
+    this.vm.kill(this.id);
     this.vm._error(this.target, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
   }
 }

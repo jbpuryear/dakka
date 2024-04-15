@@ -532,12 +532,15 @@ function threadStmt() {
   // Less one because the first argument should be the function to call
   argCount = argumentList() - 1;
   if (argCount === -1) {
-    error('Missing function in spawn statement');
+    error('Missing function in thread statement');
   }
   emitOp(OP_CODES.THREAD, argCount);
 }
 
 function spawnStmt() {
+  consume(Token.IDENTIFIER, 'Missing type identifier');
+  const typeName = prev.lexeme;
+
   const propNames = [];
   if (match(Token.L_BRACKET)) {
     if (current.type !== Token.R_BRACKET) {
@@ -561,6 +564,7 @@ function spawnStmt() {
   }
 
   emitOp(OP_CODES.SPAWN);
+  emitConstantIdx(typeName);
   emitByte(argCount)
   emitByte(propNames.length);
   for (let i = propNames.length - 1; i >= 0; i -= 1) {
