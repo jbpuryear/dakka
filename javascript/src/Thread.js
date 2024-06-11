@@ -367,38 +367,43 @@ class Thread {
 
         case 30: { // SPAWN
           const vm = this.vm;
+          const argCount = this.advance();
+          const propCount = this.advance();
 
-          const typeName = constants[this.advance()];
+          let id;
+          let thread;
+          let args;
+          let script;
+          if (argCount === -1) {
+            args = null;
+            script = null;
+            thread = null;
+            id = -1;
+          } else {
+            args = argCount > 0 ? stack.splice(-argCount) : [];
+            script = stack.pop();
+            thread = vm._aquireThread();
+            id = thread.id;
+          }
+
+          const props = propCount > 0 ? stack.splice(-propCount) : null;
+          const typeName = stack.pop();
           const type = vm._types.get(typeName);
           if (!type) {
             this.error(`Uknown type: ${typeName}`);
             return;
           }
-
-          const argCount = this.advance();
-          const propCount = this.advance();
-
-          let args;
-          let script;
-          let target;
-          let thread;
-          if (argCount !== -1) {
-            args = argCount > 0 ? stack.splice(-argCount) : [];
-            script = stack.pop();
-            thread = vm._aquireThread();
-            target = type.factory(thread.id);
-          } else {
-            target = type.factory(-1);
-          }
+          const target = type.factory(id);
 
           for (let i = 0; i < propCount; i += 1) {
             const name = constants[this.advance()];
-            const val = stack.pop();
+            const val = props.pop();
             if (type.setter(target, name, val) === undefined) {
               this.error(`Failed to spawn target object, invalid property in initializer: ${name}`);
               return;
             }
           }
+
 
           if (thread) {
             vm._startThread(thread, script, args, target, type.getter, type.setter);

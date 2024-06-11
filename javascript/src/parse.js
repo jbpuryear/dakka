@@ -5,7 +5,7 @@ import PREC from './PRECEDENCE.js';
 
 const rules = new Map([
   [Token.L_PAREN, { prefix: grouping, infix: call, precedence: PREC.CALL }],
-  [Token.L_BRACKET, { prefix: property, null: call, precedence: PREC.CALL }],
+  [Token.L_BRACKET, { prefix: property, infix: null, precedence: PREC.NONE }],
   [Token.MINUS, { prefix: unary, infix: binary, precedence: PREC.TERM }],
   [Token.PLUS, { prefix: null, infix: binary, precedence: PREC.TERM }],
   [Token.MUL, { prefix: null, infix: binary, precedence: PREC.FACTOR }],
@@ -538,8 +538,7 @@ function threadStmt() {
 }
 
 function spawnStmt() {
-  consume(Token.IDENTIFIER, 'Missing type identifier');
-  const typeName = prev.lexeme;
+  expression();
 
   const propNames = [];
   if (match(Token.L_BRACKET)) {
@@ -564,7 +563,6 @@ function spawnStmt() {
   }
 
   emitOp(OP_CODES.SPAWN);
-  emitConstantIdx(typeName);
   emitByte(argCount)
   emitByte(propNames.length);
   for (let i = propNames.length - 1; i >= 0; i -= 1) {
