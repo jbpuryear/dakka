@@ -458,7 +458,7 @@ class Thread {
           }
           stack[l - 3] += increment;
           stack.push(initVal);
-          stack.push(increment > 0 ? initVal <= max : initVal >= max);
+          stack.push(increment > 0 ? initVal < max : initVal > max);
           break;
         }
 
