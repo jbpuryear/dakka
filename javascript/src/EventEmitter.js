@@ -57,7 +57,7 @@ export default class EventEmitter {
       events.set(key, listeners);
     }
 
-    const listener = new Listener(fn, context, once)
+    const listener = new Listener(fn, context, once);
     listeners.add(listener);
 
     return listener;

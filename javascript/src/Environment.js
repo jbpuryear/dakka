@@ -1,5 +1,5 @@
 export default class Environment extends Map {
-  constructor () {
+  constructor() {
     super([
       ['PI', Math.PI],
       ['TAU', Math.PI * 2],

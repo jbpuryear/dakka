@@ -1,11 +1,14 @@
 import OP_CODES from './OP_CODES.js';
+
 const ops = Object.keys(OP_CODES);
+
 
 function getOpName(opCode) {
   return ops.find(key => OP_CODES[key] === opCode);
 }
 
-export default function(func) {
+
+export default function decompile(func) {
   const code = func.code;
   const constants = func.constants;
   const l = code.length;
@@ -52,11 +55,11 @@ export default function(func) {
         i += 1;
         const propCount = code[i];
         const props = [];
-        for (let j = 0; j < proptCount; j += 1) {
+        for (let j = 0; j < propCount; j += 1) {
           i += 1;
           props.push(constants[code[i]]);
         }
-        msg = `${name} ARG_COUNT: ${args} PROPS: ${props.join(', ')}`;
+        msg = `${name} ARG_COUNT: ${argCount} PROPS: ${props.join(', ')}`;
         break;
       }
 
@@ -66,14 +69,14 @@ export default function(func) {
         i += 1;
         const upvals = code[i];
         msg = `CLOSURE FUNC: ${funIdx} UPVALS: ${upvals}`;
-        for (var j =0; j < upvals; j += 1) {
+        for (let j = 0; j < upvals; j += 1) {
           i += 1;
           const isLocal = code[i] === 1 ? 'local' : 'upval';
           i += 1;
           const slot = code[i];
           msg += `\n        UPVAL: ${isLocal} ${slot}`;
         }
-        break
+        break;
       }
 
       default:

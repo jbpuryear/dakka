@@ -5,7 +5,7 @@ class Closure {
   }
 
   getLine(opIdx) {
-    let lm = this.func.lineMap;
+    const lm = this.func.lineMap;
     if (!lm) { return -1; }
     let i = 1;
     while (i < lm.length && opIdx > lm[i]) {

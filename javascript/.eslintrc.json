@@ -11,6 +11,20 @@
         "sourceType": "module"
     },
     "rules": {
-      "import/extensions": [ "error", "ignorePackages" ]
+      "arrow-parens": "off",
+      "default-case": "off",
+      "import/extensions": [ "error", "ignorePackages" ],
+      "no-cond-assign": "off",
+      "no-else-return": "off",
+      "no-multiple-empty-lines": "off",
+      "no-param-reassign": "off",
+      "no-return-assign": "off",
+      "no-self-compare": "off",
+      "no-shadow": "off",
+      "no-underscore-dangle": "off",
+      "no-restricted-syntax": "off",
+      "no-use-before-define": "off",
+      "max-classes-per-file": "off",
+      "prefer-destructuring": "off"
     }
 }

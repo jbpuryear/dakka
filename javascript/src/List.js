@@ -33,7 +33,7 @@ export default class List {
   }
 
   pop() {
-    let item = this.tail;
+    const item = this.tail;
     if (item) {
       this.remove(item);
     }

@@ -152,7 +152,6 @@ class Thread {
           if (areNumbers(this, a, b)) {
             if (b === 0) {
               this.error('Divide by zero');
-              return;
             } else {
               stack.push(a / b);
             }
@@ -189,11 +188,10 @@ class Thread {
         }
 
         case 18: { // INIT_GLOBAL
-          const name = constants[this.advance()]
+          const name = constants[this.advance()];
           const glb = this.vm._global;
           if (glb.has(name)) {
             this.error(`Can't initialize global, '${name}', already exists`);
-            return;
           } else {
             this.vm._global.set(name, stack.pop());
           }
@@ -201,7 +199,7 @@ class Thread {
         }
 
         case 19: { // SET_GLOBAL
-          const name = constants[this.advance()]
+          const name = constants[this.advance()];
           const glb = this.vm._global;
           if (glb.has(name)) {
             glb.set(name, stack[stack.length - 1]);
@@ -213,7 +211,7 @@ class Thread {
         }
 
         case 20: { // GET_GLOBAL
-          const name = constants[this.advance()]
+          const name = constants[this.advance()];
           const val = this.vm._global.get(name);
           if (val !== undefined) {
             stack.push(val);
@@ -282,7 +280,7 @@ class Thread {
             default:
               if (!(val instanceof Closure)) {
                 this.error(`Target property, ${name}, is not a valid Dakka type`);
-                return
+                return;
               }
           }
           stack.push(val);
@@ -293,7 +291,7 @@ class Thread {
           const fun = constants[this.advance()];
           const upvalCount = this.advance();
           const close = new Closure(fun);
-          for (var i = 0; i < upvalCount; i += 1) {
+          for (let i = 0; i < upvalCount; i += 1) {
             const isLocal = this.advance();
             const slot = this.advance();
             if (isLocal) {
@@ -414,7 +412,7 @@ class Thread {
 
         case 31: { // THREAD
           const argCount = this.advance();
-          let args = argCount > 0 ? stack.splice(-argCount): [];
+          const args = argCount > 0 ? stack.splice(-argCount) : [];
           const script = stack.pop();
           this.vm._startThread(this.vm._aquireThread(), script, args);
           break;
@@ -437,7 +435,7 @@ class Thread {
 
         case 34: { // JMP_FALSE
           const addr = this.advance();
-          if(!stack[stack.length - 1]) {
+          if (!stack[stack.length - 1]) {
             this.frame.pc = addr;
           }
           break;
@@ -524,7 +522,7 @@ class Thread {
   }
 
   closeUpvalues(slot) {
-    while(this.openUpvalues && this.openUpvalues.slot >= slot) {
+    while (this.openUpvalues && this.openUpvalues.slot >= slot) {
       const upvalue = this.openUpvalues;
       upvalue.value = this.stack[upvalue.slot];
       this.openUpvalues = upvalue.next;
@@ -535,7 +533,7 @@ class Thread {
     const frame = this.frame;
     if (frame.pc >= frame.code.length) {
       this.error('SegFault, end of code reached');
-      return;
+      return null;
     }
     const op = frame.code[frame.pc];
     frame.pc += 1;

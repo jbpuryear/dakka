@@ -47,7 +47,7 @@ class Local {
 }
 
 class Compiler {
-  constructor(outer = null, startLine = 1) {
+  constructor(outer = null) {
     this.outer = outer;
     this.code = [];
     this.constants = new Map();
@@ -92,21 +92,21 @@ class Compiler {
       return this.addUpvalue(local, true);
     }
     const upvalue = this.outer.resolveUpvalue(name);
-    if (upvalue != -1) {
+    if (upvalue !== -1) {
       return this.addUpvalue(upvalue, false);
     }
     return -1;
   }
 
   addUpvalue(slot, isLocal) {
-    for (let i = 0; i < this.upvalues.length; i++) {
+    for (let i = 0; i < this.upvalues.length; i += 1) {
       const upval = this.upvalues[i];
       if (upval.isLocal === isLocal && upval.slot === slot) {
         return i;
       }
     }
     this.upvalues.push({ slot, isLocal });
-    return this.upvalues.length -1;
+    return this.upvalues.length - 1;
   }
 
   pushScope() {
@@ -147,7 +147,7 @@ function getRule(type) {
 function error(token, msg) {
   if (panicMode) { return; }
   panicMode = true;
-  const fullMsg = `DAKA SYNTAX ERROR [line ${token.line}] ${msg}`;
+  const fullMsg = `DAKKA SYNTAX ERROR [line ${token.line}] ${msg}`;
   errors.push(fullMsg);
 }
 
@@ -287,7 +287,7 @@ function lambda() {
   emitOp(OP_CODES.CLOSURE);
   emitConstantIdx(newScript);
   emitByte(upvals.length);
-  for (var i = 0; i < upvals.length; i += 1) {
+  for (let i = 0; i < upvals.length; i += 1) {
     emitByte(upvals[i].isLocal ? 1 : 0);
     emitByte(upvals[i].slot);
   }
@@ -385,15 +385,13 @@ function variable(canAssign) {
       emitOp(OP_CODES.SET_GLOBAL);
       emitConstantIdx(name);
     }
+  } else if (type === 'local') {
+    emitOp(OP_CODES.GET_VAR, local);
+  } else if (type === 'upvalue') {
+    emitOp(OP_CODES.GET_UPVALUE, upvalue);
   } else {
-    if (type === 'local') {
-      emitOp(OP_CODES.GET_VAR, local);
-    } else if (type === 'upvalue') {
-      emitOp(OP_CODES.GET_UPVALUE, upvalue);
-    } else {
-      emitOp(OP_CODES.GET_GLOBAL);
-      emitConstantIdx(name);
-    }
+    emitOp(OP_CODES.GET_GLOBAL);
+    emitConstantIdx(name);
   }
 }
 
@@ -449,7 +447,7 @@ function ternary() {
 function and() {
   emitOp(OP_CODES.JMP_FALSE);
   const patchIdx = emitJump();
-  
+
   emitOp(OP_CODES.POP);
   parsePrecedence(PREC.AND);
 
@@ -558,12 +556,12 @@ function spawnStmt() {
     // Less one because the first argument should be the function to call
     argCount = argumentList() - 1;
     if (argCount === -1) {
-      error('Missing function in spawn statement')
+      error('Missing function in spawn statement');
     }
   }
 
   emitOp(OP_CODES.SPAWN);
-  emitByte(argCount)
+  emitByte(argCount);
   emitByte(propNames.length);
   for (let i = propNames.length - 1; i >= 0; i -= 1) {
     emitConstantIdx(propNames[i]);
@@ -601,12 +599,12 @@ function repeatStmt() {
 
 function forStmt() {
   consume(Token.L_PAREN, "Expect '(' after for");
-  consume(Token.VAR, "Expect variable declaration in for statement");
-  consume(Token.IDENTIFIER, "Missing identifier in for loop variable declaration")
+  consume(Token.VAR, 'Expect variable declaration in for statement');
+  consume(Token.IDENTIFIER, 'Missing identifier in for loop variable declaration');
   const loopVarName = prev.lexeme;
-  consume(Token.ASSIGN, "Missing assignment in for loop variable declaration")
+  consume(Token.ASSIGN, 'Missing assignment in for loop variable declaration');
   expression();
-  consume(Token.COMMA, "Expect end condition in for statement");
+  consume(Token.COMMA, 'Expect end condition in for statement');
   expression();
   if (match(Token.COMMA)) {
     expression();
@@ -644,7 +642,7 @@ function forStmt() {
   compiler.popDummyVar();
 
   emitOp(OP_CODES.JMP, testIdx);
-  patchJump(testJump)
+  patchJump(testJump);
 
   // Pop the FOR_TEST result and for loop var initializer, as well as
   // the init, max, and increment expressions that start the loop.
@@ -680,7 +678,7 @@ function ifStmt() {
   statement();
 
   emitOp(OP_CODES.JMP);
-  const elsePatchIdx = emitJump()
+  const elsePatchIdx = emitJump();
   patchJump(ifPatchIdx);
 
   emitOp(OP_CODES.POP);
@@ -717,7 +715,7 @@ function statement() {
     return;
   } else if (match(Token.FUN)) {
     functionStmt();
-    return
+    return;
   } else if (match(Token.IF)) {
     ifStmt();
     return;
@@ -748,7 +746,7 @@ function statement() {
 function declaration() {
   if (match(Token.VAR) || match(Token.GLOBAL)) {
     const type = prev.type;
-    consume(Token.IDENTIFIER, `Missing identifier in variable declaration`);
+    consume(Token.IDENTIFIER, 'Missing identifier in variable declaration');
     const name = prev.lexeme;
     if (type === Token.VAR) {
       compiler.makeVar(name);
@@ -790,7 +788,7 @@ function argDeclaration() {
 }
 
 function parse(tkns) {
-  compiler = new Compiler;
+  compiler = new Compiler();
   tokens = tkns;
   current = null;
   prev = null;
@@ -799,7 +797,7 @@ function parse(tkns) {
   panicMode = false;
 
   advance();
-  
+
   let arity = 0;
   if (match(Token.ARGS)) {
     arity = argDeclaration();
@@ -815,7 +813,9 @@ function parse(tkns) {
   if (errors.length > 0) {
     throw errors.join('\n');
   }
-  return  new DakkaFunction(arity, compiler.code, [...compiler.constants.keys()], compiler.lineMap, 1);
+  return new DakkaFunction(
+    arity, compiler.code, [...compiler.constants.keys()], compiler.lineMap, 1
+  );
 }
 
 export default parse;

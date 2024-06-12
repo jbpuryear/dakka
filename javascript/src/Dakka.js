@@ -44,12 +44,12 @@ class Dakka {
         compiled = Dakka.compile(script);
       } catch (e) {
         this._error(spawn, e);
-        return;
+        return -1;
       }
     } else {
       compiled = script;
     }
-    const close = new Closure(compiled)
+    const close = new Closure(compiled);
 
     const thread = this._aquireThread();
     let target = null;
@@ -63,8 +63,8 @@ class Dakka {
         setter = type.setter;
         getter = type.getter;
       } else {
-        this._error(null, `Invalid factory function`);
-        return;
+        this._error(null, 'Invalid factory function');
+        return -1;
       }
     } else if (typeof spawn === 'object') {
       target = spawn;
@@ -92,7 +92,8 @@ class Dakka {
     if (typeof key !== 'string') {
       this._error(null, 'Invalid type identifier');
       return false;
-    } else if (typeof factory !== 'function' || typeof getter !== 'function' || typeof setter !== 'function') {
+    }
+    if (typeof factory !== 'function' || typeof getter !== 'function' || typeof setter !== 'function') {
       this._error(null, 'Invalid type definition');
       return false;
     }
@@ -127,7 +128,8 @@ class Dakka {
     this._threadMap.clear();
   }
 
-  _startThread(thread, script, args = [], target = null, getter = defaultGetter, setter = defaultSetter, callback = null) {
+  _startThread(thread, script, args = [], target = null,
+      getter = defaultGetter, setter = defaultSetter, callback = null) {
     this._threads.shift(thread);
     this._threadMap.set(thread.id, thread);
     thread.run(script, args, target, getter, setter, callback);
