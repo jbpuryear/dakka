@@ -258,6 +258,9 @@ class Thread {
             this.error(`Cannot set undefined property ${name}`);
             return;
           }
+          if (!this.isAlive()) {
+            return;
+          }
           break;
         }
 
@@ -282,6 +285,9 @@ class Thread {
                 this.error(`Target property, ${name}, is not a valid Dakka type`);
                 return;
               }
+          }
+          if (!this.isAlive()) {
+            return;
           }
           stack.push(val);
           break;
@@ -318,6 +324,11 @@ class Thread {
             // natives are popped here
             stack.pop();
             const ret = script.apply(null, args);
+
+            if (!this.isAlive()) {
+              return;
+            }
+
             switch (typeof ret) {
               case 'number':
               case 'string':
@@ -384,24 +395,41 @@ class Thread {
             id = thread.id;
           }
 
-          const props = propCount > 0 ? stack.splice(-propCount) : null;
+          let props;
+          let propNames;
+          if (propCount > 0) {
+            props = stack.splice(-propCount);
+            propNames = [];
+            for (let i = 0; i < propCount; i += 1) {
+              propNames.push(constants[this.advance()]);
+            }
+          } else {
+            props = null;
+            propNames = null;
+          }
+
           const typeName = stack.pop();
           const type = vm._types.get(typeName);
           if (!type) {
             this.error(`Uknown type: ${typeName}`);
             return;
           }
+
           const target = type.factory(id);
 
-          for (let i = 0; i < propCount; i += 1) {
-            const name = constants[this.advance()];
-            const val = props.pop();
-            if (type.setter(target, name, val) === undefined) {
-              this.error(`Failed to spawn target object, invalid property in initializer: ${name}`);
-              return;
+          if (props) {
+            for (const name of propNames) {
+              const val = props.pop();
+              if (type.setter(target, name, val) === undefined) {
+                this.error(`Failed to spawn target object, invalid property in initializer: ${name}`);
+                return;
+              }
             }
           }
 
+          if (!this.isAlive()) {
+            return;
+          }
 
           if (thread) {
             vm._startThread(thread, script, args, target, type.getter, type.setter);
@@ -551,6 +579,10 @@ class Thread {
     const line = this.frame.script.getLine(this.frame.pc - 1);
     this.vm.kill(this.id);
     this.vm._error(this.target, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
+  }
+
+  isAlive() {
+    return !!this.frame;
   }
 }
 

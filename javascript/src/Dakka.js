@@ -105,7 +105,12 @@ class Dakka {
     let t = this._threads.head;
     while (t) {
       const { next } = t;
-      t.update(dt);
+      if (t.isAlive()) {
+        t.update(dt);
+      } else {
+        this._threads.remove(t);
+        this._pool.push(t);
+      }
       t = next;
     }
   }
@@ -115,10 +120,8 @@ class Dakka {
     if (!thread) {
       return false;
     }
-    this._threads.remove(thread);
     this._threadMap.delete(thread.id);
     thread.reset();
-    this._pool.push(thread);
     return true;
   }
 
