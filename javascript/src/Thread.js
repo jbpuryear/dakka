@@ -122,39 +122,44 @@ class Thread {
         case 10: { // ADD
           const b = stack.pop();
           const a = stack.pop();
-          if (areNumbers(this, a, b)) {
-            stack.push(a + b);
+          if (!areNumbers(this, a, b)) {
+            return;
           }
+          stack.push(a + b);
           break;
         }
 
         case 11: { // SUB
           const b = stack.pop();
           const a = stack.pop();
-          if (areNumbers(this, a, b)) {
-            stack.push(a - b);
+          if (!areNumbers(this, a, b)) {
+            return;
           }
+          stack.push(a - b);
           break;
         }
 
         case 12: { // MUL
           const b = stack.pop();
           const a = stack.pop();
-          if (areNumbers(this, a, b)) {
-            stack.push(a * b);
+          if (!areNumbers(this, a, b)) {
+            return;
           }
+          stack.push(a * b);
           break;
         }
 
         case 13: { // DIV
           const b = stack.pop();
           const a = stack.pop();
-          if (areNumbers(this, a, b)) {
-            if (b === 0) {
-              this.error('Divide by zero');
-            } else {
-              stack.push(a / b);
-            }
+          if (!areNumbers(this, a, b)) {
+            return;
+          }
+          if (b === 0) {
+            this.error('Divide by zero');
+            return;
+          } else {
+            stack.push(a / b);
           }
           break;
         }
@@ -162,17 +167,19 @@ class Thread {
         case 14: { // MOD
           const b = stack.pop();
           const a = stack.pop();
-          if (areNumbers(this, a, b)) {
-            stack.push(a % b);
+          if (!areNumbers(this, a, b)) {
+            return;
           }
+          stack.push(a % b);
           break;
         }
 
         case 15: { // NEGATE
           const a = stack.pop();
-          if (isNumber(this, a)) {
-            stack.push(-a);
+          if (!isNumber(this, a)) {
+            return;
           }
+          stack.push(-a);
           break;
         }
 
@@ -192,33 +199,31 @@ class Thread {
           const glb = this.vm._global;
           if (glb.has(name)) {
             this.error(`Can't initialize global, '${name}', already exists`);
-          } else {
-            this.vm._global.set(name, stack.pop());
+            return;
           }
+          this.vm._global.set(name, stack.pop());
           break;
         }
 
         case 19: { // SET_GLOBAL
           const name = constants[this.advance()];
           const glb = this.vm._global;
-          if (glb.has(name)) {
-            glb.set(name, stack[stack.length - 1]);
-          } else {
+          if (!glb.has(name)) {
             this.error(`Can't assign to undeclared variable, '${name}'`);
             return;
           }
+          glb.set(name, stack[stack.length - 1]);
           break;
         }
 
         case 20: { // GET_GLOBAL
           const name = constants[this.advance()];
           const val = this.vm._global.get(name);
-          if (val !== undefined) {
-            stack.push(val);
-          } else {
+          if (val === undefined) {
             this.error(`Can't access undeclared variable, '${name}'`);
             return;
           }
+          stack.push(val);
           break;
         }
 
