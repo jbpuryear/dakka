@@ -392,7 +392,7 @@ class Thread {
             args = null;
             script = null;
             thread = null;
-            id = -1;
+            id = 0;
           } else {
             args = argCount > 0 ? stack.splice(-argCount) : [];
             script = stack.pop();

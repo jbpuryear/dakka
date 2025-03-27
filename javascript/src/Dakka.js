@@ -44,7 +44,7 @@ class Dakka {
         compiled = Dakka.compile(script);
       } catch (e) {
         this._error(spawn, e);
-        return -1;
+        return 0;
       }
     } else {
       compiled = script;
@@ -64,7 +64,7 @@ class Dakka {
         getter = type.getter;
       } else {
         this._error(null, 'Invalid factory function');
-        return -1;
+        return 0;
       }
     } else if (typeof spawn === 'object') {
       target = spawn;
