@@ -582,8 +582,9 @@ class Thread {
 
   error(msg) {
     const line = this.frame.script.getLine(this.frame.pc - 1);
+    const target = this.target;
     this.vm.kill(this.id);
-    this.vm._error(this.target, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
+    this.vm._error(target, `DAKKA RUNTIME ERROR [line ${line}] ${msg}`);
   }
 
   isAlive() {
